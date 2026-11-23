@@ -46,6 +46,8 @@ h1{font-family:'Bodoni Moda',serif;font-style:italic;font-weight:500;font-size:c
 .libro-wrap{position:relative;margin:0 auto;filter:drop-shadow(0 30px 60px rgba(0,0,0,.7))}
 #libro{margin:0 auto}
 .stf__item{background:transparent}
+.pag{background:#FBF8F3;overflow:hidden}
+.pag img{display:block;width:100%;height:100%;object-fit:cover}
 .controles{display:flex;align-items:center;justify-content:center;gap:14px;margin:22px auto 0}
 .ctl{width:46px;height:46px;border-radius:50%;border:1px solid var(--linea);background:rgba(255,255,255,.04);color:var(--porcelana);display:grid;place-items:center;cursor:pointer;transition:background .2s,border-color .2s}
 .ctl:hover{background:rgba(194,168,107,.14);border-color:var(--oro)}
@@ -166,7 +168,9 @@ h1{font-family:'Bodoni Moda',serif;font-style:italic;font-weight:500;font-size:c
     width: ancho, height: alto, size: 'stretch', minWidth: 240, maxWidth: ancho, minHeight: 340, maxHeight: alto,
     showCover: true, usePortrait: true, mobileScrollSupport: true, maxShadowOpacity: .55, flippingTime: 750, drawShadow: true
   });
-  libro.loadFromImages(imgs);
+  var cont = document.getElementById('libro');
+  imgs.forEach(function (u, i) { var d = document.createElement('div'); d.className = 'pag'; if (i === 0) d.setAttribute('data-density', 'hard'); var im = document.createElement('img'); im.src = u; im.alt = ''; im.loading = i < 4 ? 'eager' : 'lazy'; d.appendChild(im); cont.appendChild(d); });
+  libro.loadFromHTML(cont.querySelectorAll('.pag'));
   var cand = $('#candado');
   function pinta() {
     var p = libro.getCurrentPageIndex() + 1, n = libro.getPageCount();
