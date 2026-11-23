@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>document.title="Pago seguro \u00b7 El Sistema de las 5 Llaves \u00b7 Varela Academy";document.documentElement.lang="es";</script>
+<style>.hl_page-preview--content .fullSection.c-section{display:none!important}</style>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#070707">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="/assets/favicon-64.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/icono-180.png">
+<!-- Generada por generar.py desde la plantilla de pago e index.html: no editar a mano. -->
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN · todo lo que hay que tocar está en este bloque
+   ===================================================================== */
+
+// Fin del Black Friday. Fecha FIJA, la misma para todo el mundo: no se
+// reinicia por visitante. Al pasar, sin recargar, toda la página pasa a
+// PRECIO_NORMAL y desaparecen la barra, la franja, el sello y la cuenta atrás.
+// Formato: "2026-11-30T23:59:00+01:00"  (+01:00 hora peninsular en invierno)
+// Vacía: no hay cuenta atrás y la fecha sale como [FECHA PENDIENTE].
+const FECHA_FIN = "2026-11-30T23:59:00+01:00";   // lunes 30/11, 23:59 hora peninsular
+
+// Checkout de Whop incrustado. Cada plan lleva su precio en Whop: el del
+// Black Friday (17 €) y el de después (27 €, el plan de siempre). Si WHOP_PLAN_NORMAL
+// está vacío se sigue usando el mismo plan: entonces hay que subirle el
+// precio en Whop el mismo minuto que FECHA_FIN.
+const WHOP_PLAN_ANTICIPADA = "plan_ThGgCHcMUHqLl";        // 17 € (Black Friday, creado 22/11/2026)
+const WHOP_PLAN_NORMAL = "plan_I2DEizmciNVQf";   // 27 € (a partir de FECHA_FIN)
+
+// Adónde lleva Whop después de pagar: la página de acceso. Whop vuelve con
+// compra=ok, el precio, el ID de la compra (eid) y las UTM de la visita.
+const URL_TRAS_PAGO = "https://varela-academy.com/5-llaves-acceso";
+
+
+// Variante de la landing de la que viene (la pone la landing en la URL: v=a / v=b).
+const VARIANTE = (function () { var v = (new URLSearchParams(location.search).get("v") || "").toUpperCase(); try { if (!/^[AB]$/.test(v)) v = sessionStorage.getItem("cl_variante") || ""; else sessionStorage.setItem("cl_variante", v); } catch (e) {} return /^[AB]$/.test(v) ? v : ""; })();
+
+// VSL: el enlace de Bunny Stream (iframe.mediadelivery.net/embed/...), Vimeo, YouTube o Wistia (o un .mp4).
+const VIDEO_URL = "https://iframe.mediadelivery.net/embed/803409/aac252ef-dfdb-4053-88ae-6f80322d7e1a";
+
+// Píxel de Meta: el mismo que usa el funnel de la academia.
+const PIXEL_ID = "388654821815128";
+
+// Precios en euros: el del Black Friday y el precio original
+const PRECIO_ANTICIPADA = 17;   // Black Friday 22/11/2026: 17 € tachando 147 € (decisión del usuario)
+const PRECIO_NORMAL = 147;
+// Precio a partir de FECHA_FIN (decisión 13/11/2026: sigue a 27 € tras el Black Friday).
+const PRECIO_TRAS_FIN = 27;
+
+// true: el bonus del diagnóstico con IA solo se ofrece durante el Black
+// Friday (al pasar FECHA_FIN desaparece de la página y del valor total).
+// Ponerlo a false si el bonus se mantiene después.
+const BONUS_SOLO_BLACK_FRIDAY = true;
+
+// Pie de página
+const AVISO_LEGAL_URL = "https://pablovarelafotografo.com/aviso-legal.html";
+const PRIVACIDAD_URL  = "https://pablovarelafotografo.com/privacidad.html";
+const CONTACTO_URL    = "https://wa.me/34685573836";
+
+/* ---------- a partir de aquí no hace falta tocar nada ---------- */
+
+window.CL = (function () {
+  var raiz = document.documentElement;
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  // Date.parse con zona horaria explícita: el mismo instante en cualquier móvil.
+  var fin = FECHA_FIN ? Date.parse(FECHA_FIN) : NaN;
+  if (FECHA_FIN && isNaN(fin)) console.error('[5 llaves] FECHA_FIN no se entiende: "' + FECHA_FIN + '". Formato: 2026-11-30T23:59:00+01:00');
+  var m = /^(\d{4})-(\d{2})-(\d{2})T/.exec(FECHA_FIN);
+  var fechaTexto = !isNaN(fin) && m ? (+m[3]) + ' de ' + MESES[+m[2] - 1] : '';
+  // el día en que sube el precio: el minuto siguiente a FECHA_FIN, en hora peninsular
+  var fechaSube = '';
+  if (!isNaN(fin)) {
+    try { fechaSube = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' }).format(new Date(fin + 60000)); }
+    catch (e) { var d1 = new Date(fin + 60000); fechaSube = d1.getDate() + ' de ' + MESES[d1.getMonth()]; }
+  }
+
+  var desfase = 0;   // si el reloj del móvil va mal, se corrige con la hora del servidor
+  function ahora() { return Date.now() + desfase; }
+  function anticipada() { return isNaN(fin) || ahora() < fin; }
+  function ponFase() {
+    var a = anticipada();
+    raiz.classList.toggle('fase-anticipada', a);
+    raiz.classList.toggle('fase-normal', !a);
+    raiz.classList.toggle('con-bonus', a || !BONUS_SOLO_BLACK_FRIDAY);
+    // Solo se anuncia una subida si PRECIO_TRAS_FIN es de verdad mayor (urgencia real)
+    raiz.classList.toggle('precio-sube', PRECIO_TRAS_FIN > PRECIO_ANTICIPADA);
+    return a;
+  }
+  ponFase();
+  if (isNaN(fin)) raiz.classList.add('sin-fecha');
+
+  // Las animaciones solo esconden cosas si esta clase existe. Si el script
+  // principal no llega a arrancar, se quita y la página se ve entera.
+  var reducido = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if (!reducido) raiz.classList.add('anima');
+  setTimeout(function () { if (!window.CL || !CL.listo) raiz.classList.remove('anima'); }, 6000);
+
+  // ---- píxel: en local no se carga, los eventos salen por consola
+  var ES_LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$|\.localhost$|\.test$/.test(location.hostname);
+  if (PIXEL_ID && !ES_LOCAL) {
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+    document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', PIXEL_ID);
+  }
+  // eventID en cada evento: preparado para la API de conversiones (evita contar doble).
+  var ESTANDAR = /^(PageView|ViewContent|Lead|InitiateCheckout|AddPaymentInfo|Purchase|CompleteRegistration|Contact|Schedule)$/;
+  function evento(nombre, datos) {
+    var id = nombre + '.' + Date.now().toString(36) + '.' + Math.random().toString(36).slice(2, 8);
+    datos = datos || {};
+    if (typeof VARIANTE === 'string' && VARIANTE) datos.variante = VARIANTE;
+    if (window.fbq && PIXEL_ID && !ES_LOCAL) fbq(ESTANDAR.test(nombre) ? 'track' : 'trackCustom', nombre, datos, { eventID: id });
+    else console.info('[píxel ' + (ES_LOCAL ? 'en local, no se envía' : 'sin PIXEL_ID') + '] ' + nombre, datos || {}, id);
+    return id;
+  }
+  evento('PageView');
+
+  // ---- precios, ahorro y fechas escritos desde las constantes
+  function rellena(ambito) {
+    var i, els, a = anticipada();
+    function pon(sel, txt) { els = ambito.querySelectorAll(sel); for (i = 0; i < els.length; i++) if (els[i].textContent !== txt) els[i].textContent = txt; }
+    els = ambito.querySelectorAll('[data-precio]');
+    for (i = 0; i < els.length; i++) els[i].textContent = ({ normal: PRECIO_NORMAL, tras: PRECIO_TRAS_FIN }[els[i].getAttribute('data-precio')] || PRECIO_ANTICIPADA) + '€';
+    pon('[data-precio-hoy]', (a ? PRECIO_ANTICIPADA : PRECIO_TRAS_FIN) + '€');
+    pon('[data-ahorro]', (PRECIO_NORMAL - PRECIO_ANTICIPADA) + '€');
+    pon('[data-descuento]', '−' + Math.round((1 - PRECIO_ANTICIPADA / PRECIO_NORMAL) * 100) + '%');
+    pon('[data-fecha-sube]', fechaSube || '[FECHA PENDIENTE]');
+    els = ambito.querySelectorAll('[data-fecha]');
+    for (i = 0; i < els.length; i++) {
+      els[i].textContent = fechaTexto || '[FECHA PENDIENTE]';
+      els[i].classList.toggle('pendiente', !fechaTexto);
+    }
+  }
+
+  // ---- cuenta atrás (barra, franja y oferta comparten los mismos data-u)
+  var reloj = 0;
+  function dos(n) { return (n < 10 ? '0' : '') + n; }
+  function mide() {
+    var b = document.getElementById('barra');
+    if (b && raiz.classList.contains('fase-anticipada')) raiz.style.setProperty('--barra-h', b.offsetHeight + 'px');
+    else raiz.style.removeProperty('--barra-h');
+  }
+  function cambiaFase() {
+    clearTimeout(reloj);
+    var a = ponFase();
+    rellena(document);
+    if (a) arrancaBarra(); else mide();
+    document.dispatchEvent(new CustomEvent('cl:fase'));
+  }
+  function pinta() {
+    var resto = fin - ahora();
+    if (resto <= 0) { cambiaFase(); return false; }
+    var s = Math.floor(resto / 1000), d = Math.floor(s / 86400), i, n;
+    var v = { d: dos(d), h: dos(Math.floor(s % 86400 / 3600)), m: dos(Math.floor(s % 3600 / 60)), s: dos(s % 60) };
+    for (var k in v) {
+      n = document.querySelectorAll('[data-u="' + k + '"]');
+      for (i = 0; i < n.length; i++) if (n[i].textContent !== v[k]) n[i].textContent = v[k];
+    }
+    n = document.querySelectorAll('[data-grupo="d"]');
+    for (i = 0; i < n.length; i++) n[i].hidden = d === 0;
+    return true;
+  }
+  function late() { if (pinta()) reloj = setTimeout(late, 1000 - ahora() % 1000 + 15); }
+  function arrancaBarra() {
+    var b = document.getElementById('barra');
+    if (!b) return;
+    rellena(b);
+    if (!isNaN(fin) && anticipada()) {
+      document.getElementById('cuenta').hidden = false;
+      clearTimeout(reloj);
+      late();
+    }
+    mide();
+  }
+
+  return {
+    fin: fin, fechaTexto: fechaTexto, local: ES_LOCAL, reducido: reducido,
+    ahora: ahora, anticipada: anticipada, evento: evento, rellena: rellena, mide: mide,
+    barra: arrancaBarra, late: function () { if (!isNaN(fin) && anticipada()) { clearTimeout(reloj); late(); } },
+    precioActual: function () { return anticipada() ? PRECIO_ANTICIPADA : PRECIO_TRAS_FIN; },
+    corrigeHora: function (servidor) {
+      var d = servidor - Date.now();
+      if (Math.abs(d) < 30000) return;
+      desfase = d;
+      if (anticipada() !== raiz.classList.contains('fase-anticipada')) cambiaFase();
+    }
+  };
+})();
+</script>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN DE LA PÁGINA DE PAGO
+   ===================================================================== */
+
+// false (decisión 21/11/2026): checkout de Whop directo, sin pedir datos antes.
+// true = pago en dos pasos: antes del checkout se piden nombre, email y WhatsApp
+// y entran en GHL aunque no termine de pagar (carrito abandonado).
+const PEDIR_DATOS_ANTES = false;
+
+// Adónde van esos datos: el disparador «Inbound Webhook» del workflow
+// «5L WF06 Checkout iniciado» de GHL. Campos: nombre, email, telefono, eid,
+// variante, origen, precio, fase, pagina y utm_* / fbclid / gclid.
+// Vacío: no se envía nada (la página funciona igual).
+const GHL_WEBHOOK_CHECKOUT = "https://services.leadconnectorhq.com/hooks/tYGH0lDF9iH5I077g8uF/webhook-trigger/a39f93fc-adab-49cc-ac56-a3e1c71da7c8";
+
+// Order bump: casilla encima del checkout. Al marcarla, el checkout de Whop se
+// vuelve a montar con los dos planes (items) y se cobran en un solo pago.
+// WHOP_PLAN_BUMP vacío = la casilla no aparece.
+const WHOP_PLAN_BUMP = "plan_XxEbYorsA0oJk";   // «Ejecuta. · Ebook de Pablo Varela» 7 € (prod_9ndIfKU5HRiAb, oculto en la tienda)
+const BUMP_PRECIO = 7;
+const BUMP_TITULO = "Sí, añade mi ebook «Ejecuta.»";
+const BUMP_TEXTO = "Mi guía para empezar en las bodas desde cero y crear tu primera campaña en Meta paso a paso: segmentación, presupuesto y números.";
+const BUMP_IMAGEN = "https://files.leadconnectorhq.com/file/6b045d13d40dd20617c71a2e/ebook-bump.webp";
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.whop.com" crossorigin>
+<link rel="preload" as="script" href="https://cdn.whop.com/elements/amber/elements.js">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,400;1,6..96,500&amp;family=Geist:wght@400;500;600;700;800;900&amp;display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,400;1,6..96,500&amp;family=Geist:wght@400;500;600;700;800;900&amp;display=swap"></noscript>
+
+<style>
+/* ================================================================ marca */
+:root{
+  --negro:#070707;--negro-2:#0D0C0B;--negro-3:#151310;
+  --oro:#C2A86B;--oro-claro:#F1E1B0;--oro-hondo:#8A7038;
+  --porcelana:#F5F1E8;--gris:#9C978B;--gris-claro:#C8C2B5;
+  --rojo:#E3392B;--rojo-2:#FF6A55;
+  --linea:rgba(255,255,255,.08);--linea-oro:rgba(194,168,107,.3);
+  --grad-oro:linear-gradient(95deg,#EFDCA6 0%,#C2A86B 45%,#987B3E 100%);
+  --grad-texto-oro:linear-gradient(100deg,#F6E8BF 0%,#C2A86B 50%,#9C7F44 100%);
+  --grad-blanco:linear-gradient(180deg,#FFFFFF 0%,#F2ECDD 52%,#BDB39C 100%);
+  --grad-cifra:linear-gradient(180deg,#FFF4D2 0%,#E8CF8F 38%,#B89451 70%,#7C6131 100%);
+  --sans:"Geist","Geist respaldo",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --serif:"Bodoni Moda","Bodoni respaldo","Didot","Bodoni 72",Georgia,serif;
+  --margen:20px;--ancho:1180px;--barra-h:0px;
+  --suave:cubic-bezier(.22,1,.36,1);
+}
+html.fase-anticipada{--barra-h:48px}
+@font-face{font-family:"Geist respaldo";src:local("Arial");size-adjust:100%;ascent-override:94%;descent-override:24%;line-gap-override:0%}
+@font-face{font-family:"Bodoni respaldo";src:local("Georgia");size-adjust:92%;ascent-override:100%;descent-override:30%;line-gap-override:0%}
+
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--negro)}
+body{margin:0;background:var(--negro)}
+.cl{position:relative;overflow-x:clip;background:var(--negro);color:var(--porcelana);font-family:var(--sans);font-size:16.5px;line-height:1.55;font-weight:400;font-variant-numeric:lining-nums;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+@supports not (overflow:clip){.cl{overflow-x:hidden}}
+@media (min-width:900px){.cl{font-size:18px}}
+.cl,.cl *,.cl *::before,.cl *::after{box-sizing:border-box}
+.cl [hidden]{display:none!important}
+.cl :where(img,svg,video,canvas){display:block;max-width:100%}
+.cl :where(img){height:auto}
+.cl :where(a){color:inherit}
+.cl :where(h1,h2,h3){margin:0;font-family:var(--sans);font-weight:700;line-height:1.06;letter-spacing:-.03em;text-wrap:balance}
+.cl :where(p,ul,ol,figure){margin:0}
+.cl :where(ul,ol){padding:0;list-style:none}
+.cl :where(p){text-wrap:pretty}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+html:not(.fase-anticipada) .solo-anticipada{display:none!important}
+html.fase-anticipada .solo-normal{display:none!important}
+html:not(.con-bonus) .solo-bonus{display:none!important}
+html.con-bonus .sin-bonus{display:none!important}
+html:not(.precio-sube) .si-sube{display:none!important}
+html.precio-sube .no-sube{display:none!important}
+
+.contenedor{position:relative;z-index:2;width:100%;max-width:var(--ancho);margin:0 auto;padding-left:max(var(--margen),env(safe-area-inset-left));padding-right:max(var(--margen),env(safe-area-inset-right))}
+.seccion{position:relative;padding:72px 0;isolation:isolate}
+@media (min-width:900px){.seccion{padding:120px 0}}
+
+.titular{font-size:clamp(1.95rem,1.1rem + 3.6vw,3.6rem);background:var(--grad-blanco);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:.06em}
+.acento{font-family:var(--serif);font-style:italic;font-weight:500;letter-spacing:-.01em;font-size:1.1em;line-height:.9;background:var(--grad-texto-oro);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:0 .06em}
+.centro{text-align:center}
+.entradilla{max-width:34em;margin:16px auto 0;color:var(--gris-claro);text-align:center}
+
+.rotulo{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;padding:6px 13px 6px 7px;border:1px solid var(--linea-oro);border-radius:999px;background:rgba(194,168,107,.06);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--oro)}
+.rotulo b{display:grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--grad-oro);color:#14110a;font-size:10.5px;letter-spacing:.04em;font-weight:700}
+
+.pendiente{display:inline;padding:.08em .45em;border:1px dashed currentColor;border-radius:6px;background:rgba(194,168,107,.12);color:var(--oro-claro);font-family:var(--sans);font-style:normal;font-weight:600;font-size:.78em;letter-spacing:.02em;-webkit-text-fill-color:currentColor}
+
+/* ================================================================ fondos */
+.fondo{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.rejilla{position:absolute;inset:-1px;background-image:linear-gradient(rgba(194,168,107,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(194,168,107,.1) 1px,transparent 1px),linear-gradient(rgba(194,168,107,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(194,168,107,.045) 1px,transparent 1px);background-size:256px 256px,256px 256px,64px 64px,64px 64px;background-position:center -1px;-webkit-mask-image:radial-gradient(ellipse 75% 62% at 50% 28%,#000 10%,transparent 72%);mask-image:radial-gradient(ellipse 75% 62% at 50% 28%,#000 10%,transparent 72%)}
+.halo{position:absolute;width:min(1100px,150vw);aspect-ratio:1;left:50%;top:var(--y,40%);transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(194,168,107,var(--fuerza,.16)) 0%,rgba(194,168,107,.05) 34%,transparent 64%)}
+.haz{position:absolute;left:50%;top:-12%;width:min(1400px,220vw);height:120%;transform:translateX(-50%);background:conic-gradient(from 180deg at 50% 0%,transparent 158deg,rgba(241,225,176,.07) 170deg,rgba(241,225,176,.13) 180deg,rgba(241,225,176,.07) 190deg,transparent 202deg);-webkit-mask-image:linear-gradient(#000 20%,transparent 85%);mask-image:linear-gradient(#000 20%,transparent 85%)}
+.borde-sup{position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(194,168,107,.35),transparent)}
+.suelo{position:absolute;left:-60%;right:-60%;bottom:0;height:46%;background-image:linear-gradient(rgba(194,168,107,.36) 1px,transparent 1px),linear-gradient(90deg,rgba(194,168,107,.36) 1px,transparent 1px);background-size:80px 80px;background-position:center bottom;transform:perspective(420px) rotateX(62deg);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.6) 45%,transparent 92%);mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.6) 45%,transparent 92%)}
+html.anima .suelo{animation:avanza 3.2s linear infinite}
+@keyframes avanza{to{background-position:center calc(100% + 80px)}}
+/* grano de película y polvo dorado: solo en escritorio (en el móvil cuestan batería y fluidez) */
+.grano{display:none}
+#polvo{display:none}
+@media (min-width:900px){
+  .grano{display:block;position:fixed;inset:0;z-index:90;pointer-events:none;opacity:.06;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  #polvo{display:block;position:fixed;inset:0;z-index:1;pointer-events:none;width:100%;height:100%}
+}
+
+/* ================================================================ cristal y botón */
+.cristal{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.014));border:1px solid rgba(255,255,255,.085);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 30px 70px -45px rgba(0,0,0,.9)}
+
+.boton{position:relative;display:inline-flex;align-items:center;justify-content:space-between;gap:14px;min-height:66px;padding:8px 9px 8px 28px;border:0;border-radius:999px;background:var(--grad-oro);color:#15110A;font:700 16.5px/1.2 var(--sans);letter-spacing:-.01em;text-decoration:none;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 22px 50px -20px rgba(194,168,107,.9),0 2px 0 rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 0 rgba(90,64,20,.25);transition:transform .3s var(--suave),box-shadow .3s var(--suave),filter .3s}
+.boton-txt{display:grid;gap:3px;min-width:0}
+.boton-txt b{font-size:17.5px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.boton-txt small{font-size:12px;font-weight:600;letter-spacing:.01em;line-height:1.2;opacity:.68}
+@media (min-width:900px){.boton-txt b{font-size:19px}.boton-txt small{font-size:12.5px}}
+.boton-ico{flex:none;display:grid;place-items:center;width:50px;height:50px;border-radius:50%;background:#15110A;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.boton-ico svg{width:18px;height:18px;fill:none;stroke:#EAD9A6;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (hover:hover){.boton:hover{transform:translateY(-2px);filter:brightness(1.04)}}
+.boton:active{transform:translateY(1px)}
+.boton:focus-visible,.cl button:focus-visible,.cl a:focus-visible{outline:2px solid var(--porcelana);outline-offset:3px}
+@media (max-width:759px){.boton{width:100%;font-size:16px;padding-left:22px}}
+.boton::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 52%)}
+.micro{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 14px;margin-top:14px;font-size:12.5px;color:var(--gris)}
+.micro span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.micro svg{width:14px;height:14px;fill:none;stroke:var(--oro);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ================================================================ barra del Black Friday */
+.barra{position:fixed;top:0;left:0;right:0;z-index:60;background:radial-gradient(ellipse 60% 140% at 0% 50%,rgba(227,57,43,.34),transparent 70%),radial-gradient(ellipse 60% 140% at 100% 50%,rgba(227,57,43,.22),transparent 70%),linear-gradient(180deg,#120605,#070707);color:var(--porcelana);border-bottom:1px solid rgba(255,106,85,.45);box-shadow:0 10px 34px -12px rgba(0,0,0,.9),0 1px 0 rgba(194,168,107,.25);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.barra::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,#8E1208,#FF5A47 30%,#F1E1B0 50%,#FF5A47 70%,#8E1208)}
+html:not(.fase-anticipada) .barra{display:none}
+.barra-hueco{height:var(--barra-h)}
+.barra-in{max-width:var(--ancho);margin:0 auto;min-height:50px;padding:7px max(12px,env(safe-area-inset-left)) 6px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.barra-txt{display:flex;align-items:center;gap:8px;margin:0;min-width:0;font-size:13px;line-height:1.2;font-weight:600;white-space:nowrap}
+.barra-bf{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 4px 7px;border-radius:7px;background:linear-gradient(180deg,#FF5A47,#C41F12);color:#fff;font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 6px 18px -6px rgba(227,57,43,.9)}
+.barra-bf i{width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.7)}
+html.anima .barra-bf i{animation:pulso 1.4s ease-out infinite}
+.barra-txt .barra-hoy{font-weight:900;font-size:16px;letter-spacing:-.02em;background:var(--grad-cifra);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.barra-txt s{color:var(--gris);font-weight:600;text-decoration-thickness:1.5px;text-decoration-color:var(--rojo-2)}
+.barra-largo{display:none;color:var(--gris-claro);font-weight:500}
+.cuenta{flex:none;display:flex;align-items:center;gap:3px;margin:0;font-variant-numeric:tabular-nums}
+.cuenta span{display:inline-flex;align-items:baseline;gap:1px;padding:5px 5px 4px;border-radius:7px;background:linear-gradient(180deg,#24100D,#120706);border:1px solid rgba(255,106,85,.42);color:#fff;font-size:14px;font-weight:800;line-height:1}
+.cuenta i{font-style:normal;font-size:9.5px;font-weight:700;color:#FF8A78}
+@media (max-width:379px){.barra-txt s{display:none}.cuenta span{padding:5px 4px 4px;font-size:13px}}
+@media (min-width:760px){.barra-in{justify-content:center;gap:22px}.barra-largo{display:inline}.barra-txt{font-size:14px}.cuenta span{padding:6px 7px 5px;font-size:15px}}
+html.sin-fecha .barra-in{justify-content:center}
+
+/* ================================================================ Black Friday (solo hasta FECHA_FIN) */
+/* sello del hero: «BLACK FRIDAY» en oro sobre laca negra y el descuento en rojo */
+.bf-sello{position:relative;display:flex;width:max-content;max-width:100%;align-items:center;gap:12px;margin:0 auto 14px;padding:8px 8px 8px 16px;border-radius:14px;background:linear-gradient(180deg,#17130F,#080707);border:1px solid rgba(194,168,107,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 0 5px rgba(227,57,43,.07),0 18px 44px -18px rgba(227,57,43,.75)}
+.bf-sello::before{content:"";position:absolute;inset:3px;border-radius:11px;border:1px solid rgba(194,168,107,.16);pointer-events:none}
+.bf-marca{font-size:15px;font-weight:900;letter-spacing:.3em;text-transform:uppercase;line-height:1;padding-top:1px;background:linear-gradient(180deg,#FFF4D2 0%,#E8CF8F 45%,#B18B45 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.bf-dto{display:inline-block;padding:7px 10px 6px;border-radius:9px;background:linear-gradient(180deg,#FF5A47,#C41F12);color:#fff;font-size:15px;font-weight:900;letter-spacing:-.02em;line-height:1;transform:rotate(-3deg);box-shadow:0 8px 20px -8px rgba(227,57,43,.95),inset 0 1px 0 rgba(255,255,255,.35)}
+@media (min-width:900px){.bf-sello{gap:16px;padding:10px 10px 10px 22px;margin-bottom:18px}.bf-marca{font-size:19px}.bf-dto{font-size:19px;padding:8px 12px 7px}}
+/* brasa roja detrás del hero y de la oferta */
+.brasa{position:absolute;left:50%;width:min(1200px,170vw);aspect-ratio:1.6;transform:translate(-50%,-50%);top:var(--y,50%);background:radial-gradient(ellipse closest-side,rgba(227,57,43,var(--fuerza,.2)),rgba(227,57,43,.05) 45%,transparent 75%);pointer-events:none}
+html:not(.fase-anticipada) .brasa{display:none}
+html.fase-anticipada .vsl{box-shadow:0 40px 100px -40px rgba(0,0,0,.95),0 30px 90px -40px rgba(227,57,43,.5),0 30px 90px -50px rgba(194,168,107,.55),inset 0 1px 0 rgba(255,255,255,.12)}
+/* reloj del hero, bajo el botón */
+.bf-reloj{display:inline-flex;align-items:center;gap:10px;margin:14px auto 0;padding:7px 8px 7px 14px;border-radius:999px;background:linear-gradient(180deg,rgba(227,57,43,.16),rgba(227,57,43,.06));border:1px solid rgba(255,106,85,.4);font-size:12.5px;font-weight:700;color:#FFD3CB;letter-spacing:.01em}
+.bf-reloj .cuenta span{font-size:13px;padding:4px 5px 3px}
+@media (max-width:379px){.bf-reloj{font-size:11.5px;gap:7px;padding-left:10px}}
+/* precio: «BLACK FRIDAY» en hueco detrás de la cifra */
+.total-hoy .bf-fondo{position:absolute;z-index:-1;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap;font-size:clamp(2.3rem,10vw,4.1rem);font-weight:900;letter-spacing:-.04em;line-height:1;color:transparent;-webkit-text-stroke:1px rgba(255,106,85,.22);pointer-events:none;user-select:none}
+html.fase-anticipada .total-eti .solo-anticipada{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 4px;border-radius:999px;background:linear-gradient(180deg,#FF5A47,#C41F12);color:#fff;letter-spacing:.14em;box-shadow:0 8px 22px -10px rgba(227,57,43,.95)}
+html.fase-anticipada .resumen{border-color:rgba(255,106,85,.38);box-shadow:0 40px 90px -50px rgba(0,0,0,1),0 30px 80px -50px rgba(227,57,43,.55)}
+html.fase-anticipada .resumen::before{content:"";position:absolute;left:24px;right:24px;top:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#FF5A47 25%,#F1E1B0 50%,#FF5A47 75%,transparent)}
+/* tarjeta de precio con el botón al checkout (la página de pago va aparte) */
+.pago-cta .boton{width:100%;margin-top:4px}
+.pago-cta .pago-cab{margin:14px 0 14px}
+.pago-cta .pago-nota{margin-top:12px}
+.pago-cta .pago-pasos{margin:16px 0 4px}
+
+/* ================================================================ cabecera y hero */
+.cabecera{position:relative;z-index:3;display:flex;justify-content:center;padding:16px 0 0}
+.cabecera img{width:178px;filter:drop-shadow(0 0 18px rgba(194,168,107,.22))}
+@media (min-width:900px){.cabecera{padding-top:30px}.cabecera img{width:300px}}
+
+.hero{position:relative;isolation:isolate;padding:18px 0 46px;text-align:center}
+.fondo-hero{background:var(--negro)}
+.hero .halo{--y:52%;--fuerza:.2}
+.portal{position:absolute;left:50%;top:70px;width:min(980px,128vw);height:1000px;transform:translateX(-50%);border-radius:999px 999px 0 0;border:1px solid rgba(194,168,107,.4);background:radial-gradient(ellipse 60% 38% at 50% 26%,rgba(241,225,176,.12),rgba(194,168,107,.04) 55%,transparent 75%);box-shadow:inset 0 0 120px rgba(194,168,107,.10);-webkit-mask-image:linear-gradient(#000 30%,transparent 80%);mask-image:linear-gradient(#000 30%,transparent 80%)}
+.portal i{position:absolute;inset:26px 26px 0;border-radius:999px 999px 0 0;border:1px solid rgba(194,168,107,.18)}
+.haces{position:absolute;left:50%;top:-6%;width:min(1500px,240vw);height:110%;transform:translateX(-50%);-webkit-mask-image:linear-gradient(#000 25%,transparent 85%);mask-image:linear-gradient(#000 25%,transparent 85%)}
+.haces i{position:absolute;inset:0;transform-origin:50% 0;background:conic-gradient(from 180deg at 50% 0%,transparent 172deg,rgba(241,225,176,.1) 178deg,rgba(241,225,176,.15) 180deg,rgba(241,225,176,.1) 182deg,transparent 188deg)}
+.haces i:nth-child(1){transform:rotate(-13deg);opacity:.7}
+.haces i:nth-child(3){transform:rotate(13deg);opacity:.7}
+html.anima .haces i:nth-child(1){animation:mece-1 14s ease-in-out infinite}
+html.anima .haces i:nth-child(3){animation:mece-3 17s ease-in-out infinite}
+@keyframes mece-1{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(-8deg)}}
+@keyframes mece-3{0%,100%{transform:rotate(13deg)}50%{transform:rotate(8deg)}}
+.hero .suelo{height:30%;opacity:.5}
+/* llaves flotando: solo en pantallas anchas, donde hay sitio a los lados */
+.flota{display:none}
+@media (min-width:1100px){
+  .flota{display:block;position:absolute;width:var(--w);height:auto;opacity:var(--o,1);filter:var(--f,none) drop-shadow(0 30px 30px rgba(0,0,0,.6));transform:rotate(var(--r))}
+  html.anima .flota{animation:flota-llave var(--d,9s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+  .flota-1{--w:160px;--r:-26deg;left:calc(50% - 690px);top:420px}
+  .flota-2{--w:180px;--r:24deg;right:calc(50% - 690px);top:250px;--d:11s;--dl:-3s}
+  .flota-3{--w:84px;--r:-14deg;left:calc(50% - 640px);top:90px;--o:.5;--f:blur(2.5px);--d:12s;--dl:-5s}
+  .flota-4{--w:80px;--r:30deg;right:calc(50% - 600px);top:650px;--o:.45;--f:blur(3px);--d:10s;--dl:-2s}
+  .flota-video{mix-blend-mode:screen;aspect-ratio:2/3;object-fit:contain}
+  .flota-3.flota-video,.flota-4.flota-video{filter:blur(2.5px)}
+}
+@keyframes flota-llave{0%,100%{transform:rotate(var(--r)) translateY(0)}50%{transform:rotate(calc(var(--r) + 4deg)) translateY(-14px)}}
+
+.hero-ante{display:inline-flex;align-items:center;gap:8px;margin:0 auto;padding:6px 13px;border:1px solid var(--linea-oro);border-radius:999px;background:rgba(194,168,107,.07);font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--oro-claro)}
+.hero-ante svg{width:15px;height:15px;fill:none;stroke:var(--oro);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hero-tit{max-width:11em;margin:16px auto 0;font-size:clamp(2.6rem,1.3rem + 6vw,5.4rem);font-weight:800;letter-spacing:-.045em;line-height:1}
+.hero-sub{max-width:31em;margin:14px auto 0;color:var(--gris-claro);font-size:1.02em;line-height:1.5}
+.hero-prueba{display:flex;justify-content:center;gap:0;max-width:30em;margin:18px auto 0;border:1px solid rgba(194,168,107,.22);border-radius:16px;background:linear-gradient(180deg,rgba(194,168,107,.08),rgba(194,168,107,.015))}
+.hero-prueba li{flex:1;padding:10px 6px 9px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);line-height:1.25}
+.hero-prueba li+li{border-left:1px solid rgba(194,168,107,.18)}
+.hero-prueba b{display:block;margin-bottom:3px;font-size:22px;font-weight:800;letter-spacing:-.04em;text-transform:none;background:var(--grad-texto-oro);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+@media (min-width:900px){.hero-prueba{margin-top:26px}.hero-prueba li{font-size:11.5px;padding:14px 8px 12px}.hero-prueba b{font-size:28px}}
+.hero-sub b{color:var(--porcelana);font-weight:700}
+.hero .boton{margin-top:20px}
+@media (min-width:900px){.hero{padding:30px 0 90px}.hero-tit{margin-top:22px}.hero-sub{font-size:20.5px;margin-top:20px}.hero .boton{margin-top:34px;min-width:440px}}
+
+/* VSL: el reproductor solo existe después del clic */
+.vsl{position:relative;max-width:860px;margin:20px auto 0;padding:6px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);box-shadow:0 40px 100px -40px rgba(0,0,0,.95),0 30px 90px -50px rgba(194,168,107,.55),inset 0 1px 0 rgba(255,255,255,.12)}
+.vsl-marco{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:18px;background:#000}
+@supports not (aspect-ratio:1){.vsl-marco{height:0;padding-top:56.25%}}
+.vsl-fachada{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;background:#000;cursor:pointer;color:inherit}
+.vsl-fachada img{width:100%;height:100%;object-fit:cover}
+.vsl-fachada::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,7,7,0) 45%,rgba(7,7,7,.5)),radial-gradient(circle at 50% 50%,rgba(7,7,7,0) 35%,rgba(7,7,7,.3))}
+.vsl-play{position:absolute;z-index:1;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:linear-gradient(150deg,#F1E1B0,#C2A86B 55%,#8A7038);display:grid;place-items:center;box-shadow:0 0 0 9px rgba(194,168,107,.16),0 20px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .4s var(--suave)}
+.vsl-play svg{width:24px;height:24px;margin-left:4px;fill:#15110A}
+@media (hover:hover){.vsl-fachada:hover .vsl-play{transform:scale(1.06)}}
+.vsl-medio{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+/* previsualización en silencio + «activar sonido» (Bunny o .mp4) */
+.vsl-previa{position:absolute;inset:0}
+.vsl-previa .vsl-medio{pointer-events:none}
+.vsl-sonido{position:absolute;inset:0;z-index:2;display:grid;place-items:center;width:100%;height:100%;margin:0;padding:0;border:0;background:linear-gradient(180deg,rgba(7,7,7,0) 45%,rgba(7,7,7,.38));cursor:pointer;-webkit-tap-highlight-color:transparent}
+.vsl-sonido-pill{display:inline-flex;align-items:center;gap:11px;padding:13px 22px 13px 15px;border-radius:999px;background:linear-gradient(150deg,#F1E1B0,#C2A86B 55%,#8A7038);color:#15110A;font-weight:700;font-size:16px;line-height:1.1;box-shadow:0 0 0 8px rgba(194,168,107,.2),0 18px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.6);animation:vsl-latido 1.8s ease-in-out infinite}
+.vsl-sonido-pill svg{flex:none;width:26px;height:26px}
+.vsl-sonido-pill .alt{fill:#15110A}
+.vsl-sonido-pill .ola{fill:none;stroke:#15110A;stroke-width:2;stroke-linecap:round}
+.vsl-sonido:focus-visible .vsl-sonido-pill{outline:2px solid var(--porcelana);outline-offset:4px}
+@keyframes vsl-latido{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@media (max-width:520px){.vsl-sonido-pill{gap:9px;padding:10px 16px 10px 12px;font-size:14px}.vsl-sonido-pill svg{width:22px;height:22px}}
+@media (prefers-reduced-motion:reduce){.vsl-sonido-pill{animation:none}}
+
+.vsl-aviso{display:none;position:absolute;z-index:2;left:50%;bottom:12px;transform:translateX(-50%);white-space:nowrap;background:rgba(7,7,7,.85)!important}
+.vsl.sin-video .vsl-aviso{display:block}
+@media (min-width:900px){.vsl{margin-top:40px;padding:10px;border-radius:32px}.vsl-marco{border-radius:24px}.vsl-play{width:92px;height:92px;margin:-46px 0 0 -46px}}
+
+/* recuadro de la promesa (solo en la B; sin garantizar resultados: decisión de Pablo 21/11/2026) */
+.promesa{display:flex;align-items:center;gap:12px;max-width:34em;margin:16px auto 0;padding:11px 14px 11px 11px;border-radius:18px;background:linear-gradient(100deg,rgba(194,168,107,.15),rgba(194,168,107,.04));border:1px solid rgba(194,168,107,.32);text-align:left;font-size:14.5px;font-weight:600;line-height:1.38;color:var(--porcelana)}
+.promesa-ico{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--grad-oro)}
+.promesa-ico svg{width:20px;height:20px;fill:none;stroke:#15110A;stroke-width:1.9}
+@media (min-width:900px){.promesa{font-size:16px;margin-top:26px}}
+
+/* ================================================================ escenas 3D (renders en vídeo) */
+.render{position:relative;aspect-ratio:1}
+.render video,.render img.fijo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.render .fijo{z-index:1;transition:opacity .6s}
+.render.video-listo .fijo{opacity:0}
+
+/* ================================================================ etiqueta Black Friday colgada junto al llavero (oferta) */
+.oferta-escena .etiqueta-3d{position:absolute;z-index:3;right:-15%;top:-2%;width:44%;aspect-ratio:2/3;-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 54%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 50% 50% at 50% 54%,#000 62%,transparent 100%);transform:rotate(8deg);filter:drop-shadow(0 20px 26px rgba(0,0,0,.7))}
+@media (min-width:1000px){.oferta-escena .etiqueta-3d{right:-30%;width:42%}}
+
+/* ================================================================ el problema: cuatro escenas */
+.dolores{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:900px;margin:30px auto 0}
+.dolor{position:relative;display:flex;flex-direction:column;padding:14px;overflow:hidden}
+.dolor-ancho{grid-column:1 / -1}
+.d-vis{position:relative;flex:1;display:grid;place-items:center;min-height:118px;margin-bottom:12px;border-radius:14px;background:radial-gradient(ellipse 80% 70% at 50% 40%,rgba(194,168,107,.09),transparent 70%),#0B0A09;border:1px solid rgba(255,255,255,.05);overflow:hidden}
+.dolor figcaption{font-size:14px;line-height:1.38;color:var(--gris-claro)}
+.dolor figcaption b{display:block;margin-bottom:2px;color:var(--porcelana);font-size:15.5px;font-weight:700;letter-spacing:-.01em}
+/* chat: «¿precio?» y visto */
+.chat{width:100%;max-width:340px;padding:14px 12px 10px;display:grid;gap:7px}
+.burbuja{max-width:82%;padding:8px 12px;border-radius:16px;font-size:13.5px;line-height:1.3}
+.burbuja.entra{justify-self:start;background:#22201C;color:var(--porcelana);border-bottom-left-radius:5px}
+.burbuja.sale{justify-self:end;background:var(--grad-oro);color:#15110A;font-weight:600;border-bottom-right-radius:5px}
+.chat-estado{justify-self:end;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--gris)}
+.chat-estado svg{width:14px;height:14px;fill:none;stroke:var(--gris);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chat-esc{justify-self:start;display:flex;gap:4px;padding:9px 12px;border-radius:16px;background:#1A1815;opacity:.5}
+.chat-esc i{width:6px;height:6px;border-radius:50%;background:var(--gris)}
+html.anima .dolores.visto .chat-esc{animation:apaga 2.4s ease-in 1.2s forwards}
+@keyframes apaga{to{opacity:0}}
+/* agenda vacía */
+.agenda{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;width:100%;padding:12px}
+.agenda span{display:grid;place-items:center;height:26px;border-radius:7px;background:#15130F;border:1px solid rgba(255,255,255,.05);font-size:9.5px;font-weight:700;letter-spacing:.08em;color:#5A554C}
+.agenda span.si{background:rgba(194,168,107,.16);border-color:rgba(194,168,107,.45);color:var(--oro-claro)}
+/* precio que baja */
+.barras{display:flex;align-items:flex-end;justify-content:center;gap:9px;height:100%;width:100%;padding:16px 14px 0}
+.barras i{flex:1;max-width:30px;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#E8CF8F,#8A7038);transform-origin:50% 100%}
+.barras i:nth-child(1){height:86%}.barras i:nth-child(2){height:66%;opacity:.8}.barras i:nth-child(3){height:46%;opacity:.6}.barras i:nth-child(4){height:26%;opacity:.42;background:linear-gradient(180deg,var(--rojo-2),#7c1d14)}
+html.anima .dolores:not(.visto) .barras i{transform:scaleY(.15)}
+.barras i{transition:transform 1.1s var(--suave)}
+.barras i:nth-child(2){transition-delay:.12s}.barras i:nth-child(3){transition-delay:.24s}.barras i:nth-child(4){transition-delay:.36s}
+.flecha-baja{position:absolute;right:12px;top:12px;width:26px;height:26px;fill:none;stroke:var(--rojo-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* tú contra el de al lado */
+.versus{display:grid;gap:10px;width:100%;padding:14px}
+.vs-fila{display:grid;grid-template-columns:62px 1fr;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gris)}
+.vs-barras{display:grid;gap:4px}
+.vs-barras i{display:block;height:9px;border-radius:9px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
+.vs-barras i::after{content:"";position:absolute;inset:0;width:var(--v);border-radius:9px;background:var(--c,var(--grad-oro));transform-origin:0 50%;transition:transform 1.2s var(--suave) .2s}
+html.anima .dolores:not(.visto) .vs-barras i::after{transform:scaleX(0)}
+.vs-leyenda{display:flex;gap:14px;justify-content:flex-end;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}
+.vs-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.vs-leyenda span::before{content:"";width:10px;height:6px;border-radius:4px;background:var(--grad-oro)}
+.vs-leyenda span+span::before{background:#7FA7B8}
+.sentencia{max-width:20em;margin:36px auto 0;text-align:center;font-size:clamp(1.45rem,1rem + 2.2vw,2.5rem);font-weight:700;line-height:1.18;letter-spacing:-.03em;color:var(--porcelana)}
+@media (min-width:760px){
+  .dolores{grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+  .dolor-ancho{grid-column:span 2}
+  .dolor{padding:18px}
+  .d-vis{min-height:150px}
+}
+
+/* ================================================================ la historia */
+.historia{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:center;max-width:980px;margin:0 auto}
+.h-foto{width:min(340px,86%);margin:0 auto 4px}
+.h-tit{text-align:center}
+.h-foto::after{content:"";position:absolute;inset:auto 10% -18px;height:40px;border-radius:50%;background:radial-gradient(closest-side,rgba(194,168,107,.35),transparent);z-index:-1}
+.h-foto{position:relative}
+.h-foto img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:50% 22%;border-radius:24px;border:1px solid rgba(194,168,107,.45);box-shadow:0 40px 80px -40px rgba(0,0,0,.95),0 0 60px -20px rgba(194,168,107,.35)}
+.h-tit .rotulo{margin-bottom:10px}
+.h-tit h2{font-size:clamp(1.6rem,1.1rem + 2.6vw,3.2rem)}
+.h-texto{grid-column:1 / -1;color:var(--gris-claro)}
+.h-texto p+p{margin-top:.8em}
+.h-texto p:first-child{color:var(--porcelana);font-weight:500}
+.firma{margin-top:10px;font-family:"Mrs Saint Delafield",var(--serif);font-size:56px;line-height:1;color:var(--oro);transform:rotate(-5deg);transform-origin:0 50%}
+.cifras{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:8px;border:1px solid rgba(194,168,107,.25);border-radius:18px;background:linear-gradient(180deg,rgba(194,168,107,.08),rgba(194,168,107,.02));overflow:hidden}
+.cifras li{padding:13px 4px 11px;text-align:center}
+.cifras li+li{border-left:1px solid rgba(194,168,107,.18)}
+.cifra{display:block;font-family:var(--sans);font-weight:800;font-size:clamp(1.15rem,.8rem + 2vw,2.4rem);line-height:1;letter-spacing:-.04em;font-variant-numeric:lining-nums tabular-nums;background:var(--grad-texto-oro);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:.05em 0 .08em;white-space:nowrap}
+.cifra-eti{display:block;margin-top:5px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);line-height:1.25}
+@media (min-width:900px){
+  .historia{grid-template-columns:320px minmax(0,1fr);grid-template-areas:"foto tit" "foto texto" "cifras cifras";gap:22px 64px;align-items:start}
+  .h-foto{grid-area:foto;width:100%;margin:0}.h-tit{text-align:left}.h-tit{grid-area:tit;align-self:end}.h-texto{grid-area:texto;grid-column:auto}.cifras{grid-area:cifras;margin-top:26px}
+  .cifras li{padding:22px 10px 20px}.cifra-eti{font-size:11px}
+}
+
+/* ================================================================ las 5 llaves: pestañas + carrusel (móvil) / rejilla (escritorio) */
+.llaves-sec{overflow:hidden}
+.llaves-sec .halo{--y:42%;--fuerza:.14}
+.llaves-tabs{display:flex;justify-content:center;gap:6px;margin:24px auto 12px}
+.llaves-tabs button{position:relative;display:grid;justify-items:center;gap:2px;width:58px;padding:6px 0 7px;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.03);color:var(--gris);font:800 12px/1 var(--sans);letter-spacing:.04em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .3s,border-color .3s,color .3s}
+.llaves-tabs img{width:26px;height:39px;object-fit:contain;opacity:.6;transition:opacity .3s}
+.llaves-tabs button[aria-selected="true"]{border-color:rgba(194,168,107,.6);background:linear-gradient(180deg,rgba(194,168,107,.2),rgba(194,168,107,.05));color:var(--oro-claro)}
+.llaves-tabs button[aria-selected="true"] img{opacity:1}
+.llaves-tabs{display:none!important}
+.llaves-pista{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:26px 0 0}
+@media (min-width:700px) and (max-width:999px){.llaves-pista{grid-template-columns:1fr 1fr}.llave-card:last-child{grid-column:1 / -1}}
+.llaves-pista::-webkit-scrollbar{display:none}
+.llave-card{display:grid;grid-template-columns:96px minmax(0,1fr);gap:4px 14px;align-content:start;padding:14px 16px 16px 12px}
+.nicho{position:relative;grid-row:span 2;overflow:hidden;isolation:isolate;width:96px;aspect-ratio:2/3;border-radius:999px 999px 16px 16px;background:radial-gradient(ellipse 75% 45% at 50% 42%,rgba(194,168,107,.28),rgba(194,168,107,.05) 60%,transparent 75%),linear-gradient(180deg,#17140f,#0A0908);border:1px solid rgba(194,168,107,.38);box-shadow:inset 0 0 0 5px rgba(0,0,0,.35),0 0 40px -16px rgba(194,168,107,.45)}
+.nicho img,.nicho video{position:absolute;inset:4% 8%;width:84%;height:92%;object-fit:contain}
+.nicho video{mix-blend-mode:screen}
+.nicho img{transition:opacity .5s}
+.nicho.video-listo img{opacity:0}
+.llave-eti{align-self:end;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--oro)}
+.llave-tit{align-self:start;font-size:1.45rem;font-weight:800;letter-spacing:-.03em}
+.llave-abre{grid-column:1 / -1;margin-top:10px;font-family:var(--serif);font-style:italic;font-size:1.12em;line-height:1.25;color:var(--oro-claro)}
+.llave-card ul{grid-column:1 / -1;margin-top:8px;color:var(--gris-claro);font-size:14.5px;line-height:1.42}
+.llave-card li{position:relative;padding:7px 0 7px 20px;border-top:1px solid var(--linea)}
+.llave-card li::before{content:"";position:absolute;left:2px;top:calc(7px + .5em);width:7px;height:7px;border-radius:2px;background:var(--grad-oro);transform:rotate(45deg)}
+.llaves-remate{max-width:30em;margin:22px auto 0;text-align:center;font-size:clamp(1.3rem,1rem + 1.6vw,2.1rem);font-weight:700;line-height:1.2;letter-spacing:-.03em}
+@media (min-width:1000px){
+  .llaves-tabs{display:none}
+  .llaves-pista{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;overflow:visible;margin:48px 0 0;padding:0}
+  .llave-card{grid-template-columns:1fr;justify-items:center;text-align:center;padding:18px 16px 18px}
+  .nicho{grid-row:auto;width:min(150px,100%);margin-bottom:12px}
+  .llave-eti{align-self:auto}
+  .llave-card ul{text-align:left;font-size:14.5px}
+}
+
+/* ================================================================ para quién */
+.quien{max-width:900px;margin:0 auto}
+.listas{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.lista{padding:16px 14px}
+.lista h3{margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--oro)}
+.lista-no h3{color:var(--gris)}
+.lista li{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:14px;line-height:1.35;color:var(--gris-claro)}
+.lista li svg{flex:none;width:18px;height:18px;margin-top:0;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;border-radius:50%;padding:3px}
+.lista-si li svg{stroke:#15110A;background:var(--grad-oro)}
+.lista-no li svg{stroke:var(--gris);border:1px solid rgba(255,255,255,.15)}
+@media (min-width:760px){.listas{gap:18px;margin-top:36px}.lista{padding:26px 28px}.lista li{font-size:16px}}
+
+/* ================================================================ la oferta */
+.oferta{padding-top:56px;overflow:hidden}
+.oferta .halo{--y:12%;--fuerza:.26}
+.oferta-cab{text-align:center}
+.oferta-escena{position:relative;width:min(300px,78vw);margin:-6px auto -20px}
+.llavero{-webkit-mask-image:radial-gradient(closest-side,#000 70%,transparent 100%);mask-image:radial-gradient(closest-side,#000 70%,transparent 100%)}
+.sello{position:absolute;z-index:3;top:16%;right:-4%;display:grid;place-items:center;align-content:center;gap:1px;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFF1C9,#D9BE7E 45%,#9C7F44 100%);color:#15110A;text-align:center;transform:rotate(12deg);box-shadow:0 18px 40px -14px rgba(0,0,0,.9),0 0 0 5px rgba(7,7,7,.85),0 0 0 6px rgba(194,168,107,.5),inset 0 2px 0 rgba(255,255,255,.6)}
+.sello span{font-size:8.5px;font-weight:800;letter-spacing:.12em;line-height:1.1;text-transform:uppercase}
+.sello b{font-size:22px;font-weight:900;letter-spacing:-.05em;line-height:1}
+.oferta-grid{display:grid;gap:18px;max-width:1140px;margin:0 auto}
+.resumen{position:relative;width:100%;max-width:600px;margin:0 auto;padding:8px 12px 18px;border-radius:26px;border:1px solid rgba(194,168,107,.32);background:radial-gradient(ellipse 80% 30% at 50% 0%,rgba(194,168,107,.12),transparent 70%),linear-gradient(180deg,#14120F,#0A0908);box-shadow:0 40px 90px -50px rgba(0,0,0,1)}
+.resumen-tit{padding:12px 6px 6px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--oro);text-align:center}
+/* la pila de valor */
+.pila{display:grid}
+.pieza{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 4px;border-top:1px solid var(--linea)}
+.pieza:first-child{border-top:0}
+.pieza-img{width:56px;height:56px;border-radius:14px;object-fit:cover;border:1px solid rgba(194,168,107,.25);background:#0B0A09}
+.pieza-ico{display:grid;place-items:center;width:56px;height:56px;border-radius:14px;border:1px solid rgba(194,168,107,.3);background:radial-gradient(circle at 50% 35%,rgba(194,168,107,.3),rgba(194,168,107,.04) 70%),#0E0C0A}
+.pieza-ico svg{width:24px;height:24px;fill:none;stroke:var(--oro-claro);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.pieza-tit{font-size:15px;font-weight:700;line-height:1.25;color:var(--porcelana);letter-spacing:-.01em}
+.pieza-sub{margin-top:2px;font-size:12.5px;line-height:1.3;color:var(--gris)}
+.pieza-valor{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--gris-claro);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.pieza-valor small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}
+.pieza-bonus{margin:6px -6px 2px;padding:10px;border:1px solid rgba(235,80,60,.55);border-radius:18px;background:radial-gradient(ellipse 70% 80% at 0% 50%,rgba(229,57,43,.28),transparent 70%),#140706}
+.pieza-bonus .pieza-img{border-color:rgba(255,106,85,.5)}
+.pieza-bonus .pieza-valor{color:#FF8A78}
+.bonus-tag{display:inline-flex;align-items:center;gap:6px;margin-bottom:4px;padding:3px 8px 3px 6px;border-radius:999px;background:linear-gradient(95deg,#FF5A47,#D7261B);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.bonus-tag i{width:6px;height:6px;border-radius:50%;background:#fff}
+html.anima .bonus-tag i{animation:pulso 1.4s ease-out infinite}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}80%,100%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
+.pieza-llamada .pieza-valor{color:var(--oro-claro);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+/* totales */
+.total{margin-top:10px;padding:14px 10px 4px;border-top:1px dashed rgba(194,168,107,.35);text-align:center}
+.total-fila{display:flex;justify-content:space-between;align-items:baseline;padding:2px 2px;font-size:14.5px;color:var(--gris-claro)}
+.total-fila s{position:relative;font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--gris);text-decoration:none}
+.tachon::after{content:"";position:absolute;left:-6%;right:-6%;top:52%;height:2px;background:linear-gradient(95deg,var(--rojo-2),var(--rojo));transform:rotate(-6deg) scaleX(var(--trazo,1));transform-origin:left;transition:transform .8s var(--suave) .2s}
+html.anima .tachon:not(.trazado){--trazo:0}
+.total-hoy{position:relative;isolation:isolate;margin-top:12px}
+/* el brillo va detrás en un degradado: un filter sobre texto recortado deja un rectángulo negro en Safari */
+.total-hoy::before{content:"";position:absolute;z-index:-1;left:50%;top:52%;width:260px;height:150px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(194,168,107,.28),transparent);pointer-events:none}
+.total-eti{font-size:11.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--oro-claro)}
+.precio-grande{margin-top:2px;font-family:var(--sans);font-weight:800;font-size:clamp(5rem,3.4rem + 8vw,7.4rem);line-height:.95;letter-spacing:-.065em;font-variant-numeric:lining-nums;background:var(--grad-cifra);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.ahorro{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:6px 12px;border-radius:999px;background:rgba(227,57,43,.12);border:1px solid rgba(255,106,85,.45);font-size:13.5px;font-weight:700;color:#FFD3CB}
+.ahorro b{color:#fff;font-weight:800}
+.precio-arg{max-width:24em;margin:12px auto 0;font-size:14px;color:var(--gris-claro)}
+/* urgencia real: la misma fecha para todos */
+.urgencia{padding:16px 14px 14px;border-radius:22px;border:1px solid rgba(255,106,85,.45);background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(229,57,43,.2),transparent 70%),#100807;text-align:center}
+.urg-tit{font-size:11.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#FFB4A8}
+.reloj{display:flex;justify-content:center;gap:6px;margin-top:10px}
+.reloj span{flex:1;max-width:84px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px 8px;border-radius:14px;background:linear-gradient(180deg,#1F1C17,#0E0D0B);border:1px solid rgba(194,168,107,.22)}
+.reloj b{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#FFF4D2,#C9AE70);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.reloj i{font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gris)}
+html.sin-fecha .reloj{display:none}
+.urg-lista{display:grid;gap:6px;margin-top:12px;text-align:left}
+.urg-lista li{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;line-height:1.38;color:var(--gris-claro)}
+.urg-lista li b{color:var(--porcelana)}
+.urg-lista svg{flex:none;width:16px;height:16px;margin-top:1px;fill:none;stroke:var(--rojo-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* la bóveda con el checkout de Whop, sin pasos previos */
+.lado{display:grid;gap:14px;width:100%;max-width:600px;margin:0 auto;align-content:start}
+.pago{position:relative;width:100%;border-radius:28px;isolation:isolate;scroll-margin-top:calc(var(--barra-h) + 10px)}
+.pago::before{content:"";position:absolute;inset:-1px;z-index:-1;border-radius:29px;background:linear-gradient(160deg,rgba(241,225,176,.85),rgba(194,168,107,.18) 30%,rgba(194,168,107,.12) 70%,rgba(241,225,176,.6))}
+.pago-in{position:relative;border-radius:27px;padding:14px 12px 14px;background:radial-gradient(ellipse 90% 30% at 50% 0%,rgba(194,168,107,.12),transparent 70%),linear-gradient(180deg,#14120F,#0A0908);overflow:hidden}
+.pago-resumen{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 4px 12px;border-bottom:1px solid var(--linea)}
+.pago-resumen img{width:52px;height:52px}
+.pago-prod{font-size:14.5px;font-weight:800;line-height:1.2;letter-spacing:-.01em}
+.pago-det{margin-top:2px;font-size:12px;line-height:1.3;color:var(--gris)}
+.pago-precio{text-align:right;line-height:1.05}
+.pago-precio s{display:block;font-size:13px;font-weight:600;color:var(--gris);text-decoration-color:var(--rojo-2);text-decoration-thickness:1.5px}
+.pago-precio b{font-size:26px;font-weight:900;letter-spacing:-.05em;background:var(--grad-cifra);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.pago-cab{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin:12px 0 10px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--oro-claro)}
+.pago-cab span{display:inline-flex;align-items:center;gap:6px}
+.pago-cab svg{width:14px;height:14px;fill:none;stroke:var(--oro);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.whop-hueco{position:relative;min-height:600px}
+.whop-hueco iframe{display:block;max-width:100%}
+.pago.whop-listo .whop-hueco{min-height:0}
+.esqueleto{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;padding:8px 4px;transition:opacity .4s}
+.esqueleto i{display:block;height:46px;border-radius:14px;background:linear-gradient(100deg,rgba(255,255,255,.04) 30%,rgba(241,225,176,.12) 50%,rgba(255,255,255,.04) 70%) 0 0/300% 100%}
+html.anima .esqueleto i{animation:brilla 1.6s linear infinite}
+.esqueleto i.alto{height:150px}
+.esqueleto i.boton-e{height:56px;border-radius:999px;background-color:rgba(194,168,107,.25)}
+@keyframes brilla{to{background-position:-300% 0}}
+.pago.whop-listo .esqueleto,.pago.whop-fallo .esqueleto{opacity:0;pointer-events:none}
+.pago-fallo{display:none;padding:6px 2px 4px}
+.pago.whop-fallo .pago-fallo{display:block}
+.pago.whop-fallo .whop-hueco{display:none}
+.pago-nota{margin-top:10px;font-size:12.5px;line-height:1.4;color:var(--gris);text-align:center}
+.pago.destello::before{animation:destello 1.2s var(--suave)}
+@keyframes destello{0%,100%{filter:none}35%{filter:brightness(1.8)}}
+/* pago en dos pasos (página de pago): datos → checkout */
+.pago-pasos{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 16px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gris)}
+.pago-pasos span{display:inline-flex;align-items:center;gap:8px}
+.pago-pasos b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;border:1px solid rgba(194,168,107,.35);font-size:11px;letter-spacing:0}
+.pago-pasos span.activo{color:var(--oro-claro)}
+.pago-pasos span.activo b{background:var(--grad-oro);border-color:transparent;color:#15110A}
+.pago-pasos span.hecho b{background:rgba(194,168,107,.18);border-color:rgba(194,168,107,.5);color:var(--oro-claro)}
+.pago-pasos i{width:34px;height:1px;background:linear-gradient(90deg,rgba(194,168,107,.6),rgba(194,168,107,.15))}
+.pago.dos-pasos:not(.en-pago) .whop-hueco,.pago.dos-pasos:not(.en-pago) .pago-fallo{display:none!important}
+.datos{display:grid;gap:14px;padding:4px 8px 6px;text-align:left}
+.datos-tit{margin:2px 0 4px;text-align:center;font-size:clamp(1.3rem,1.1rem + .8vw,1.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.campo{display:grid;gap:7px}
+.campo > span,.campo > label{font-size:13px;font-weight:600;color:var(--gris-claro)}
+.campo input,.campo select{width:100%;min-height:54px;padding:0 16px;border-radius:14px;border:1px solid rgba(194,168,107,.28);background:rgba(255,255,255,.035);color:var(--porcelana);font:500 16px/1.2 var(--sans);transition:border-color .2s,box-shadow .2s,background .2s;-webkit-appearance:none;appearance:none}
+.campo input:focus,.campo select:focus{outline:none;border-color:var(--oro);box-shadow:0 0 0 3px rgba(194,168,107,.22);background:rgba(255,255,255,.055)}
+.campo input:-webkit-autofill{-webkit-text-fill-color:var(--porcelana);-webkit-box-shadow:0 0 0 40px #1A1814 inset;caret-color:var(--porcelana)}
+.tel{display:grid;grid-template-columns:minmax(0,118px) minmax(0,1fr);gap:8px}
+.tel select{padding:0 26px 0 12px;font-size:15px;background:rgba(255,255,255,.035) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C2A86B' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center/16px;text-overflow:ellipsis}
+.tel select option{background:#14120F;color:var(--porcelana)}
+.acepto{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--gris-claro);cursor:pointer}
+.acepto input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:#C2A86B}
+.acepto a{color:var(--oro-claro)}
+.datos-error{padding:10px 14px;border-radius:12px;background:rgba(227,57,43,.12);border:1px solid rgba(255,106,85,.4);color:#FFC9BF;font-size:14px;font-weight:600}
+.datos .boton{width:100%;margin-top:4px}
+.datos .boton[aria-busy="true"]{opacity:.7;pointer-events:none}
+.datos-micro{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;color:var(--gris);text-align:center}
+.datos-micro svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--oro);stroke-width:1.8}
+.datos-resumen{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin:-4px 0 10px;font-size:13.5px;color:var(--gris-claro)}
+.datos-resumen b{color:var(--porcelana);font-weight:600;word-break:break-all}
+.datos-resumen button{border:0;background:none;padding:6px 4px;color:var(--oro-claro);font:600 13.5px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+@media (max-width:599px){.pago{width:calc(100% + 12px);margin:0 -6px}.pago-in{padding:12px 6px 12px}.pago-resumen,.pago-cab{padding-left:6px;padding-right:6px}}
+@media (min-width:1000px){
+  .oferta-escena{width:360px}
+  .oferta-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start;margin-top:10px}
+  .resumen{max-width:none;padding:14px 22px 24px}
+  .lado{max-width:none;position:sticky;top:calc(var(--barra-h) + 20px)}
+  .pago-in{padding:18px 22px}
+  .pieza{grid-template-columns:64px minmax(0,1fr) auto;gap:16px;padding:11px 4px}
+  .pieza-img,.pieza-ico{width:64px;height:64px}
+  .pieza-tit{font-size:16.5px}.pieza-sub{font-size:13.5px}.pieza-valor{font-size:20px}
+}
+
+/* ================================================================ garantía */
+.garantia{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;align-items:center;max-width:900px;margin:0 auto;padding:18px 16px}
+.medalla{width:96px;filter:drop-shadow(0 20px 30px rgba(0,0,0,.7))}
+html.anima .medalla{animation:flota 7s ease-in-out infinite}
+@keyframes flota{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+.garantia h2{font-size:clamp(1.3rem,1rem + 1.6vw,2.4rem)}
+.garantia p{margin-top:6px;font-size:14.5px;color:var(--gris-claro)}
+@media (min-width:760px){.garantia{grid-template-columns:200px 1fr;gap:44px;padding:36px 46px}.medalla{width:200px}.garantia p{font-size:17px}}
+
+/* ================================================================ preguntas */
+.faq{max-width:820px;margin:26px auto 0;display:grid;gap:8px}
+.faq-item{border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.08);transition:border-color .3s,background .3s}
+.faq-item.abierta{border-color:rgba(194,168,107,.35);background:linear-gradient(180deg,rgba(194,168,107,.08),rgba(255,255,255,.012))}
+.faq-item h3{font-size:inherit;line-height:inherit;letter-spacing:0}
+.faq-p{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;padding:15px 14px 15px 18px;margin:0;background:none;border:0;color:var(--porcelana);font:600 15.5px/1.35 var(--sans);letter-spacing:-.01em;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:18px}
+.faq-mas{position:relative;flex:none;width:30px;height:30px;border-radius:50%;border:1px solid var(--linea-oro);transition:transform .35s var(--suave),background .3s}
+.faq-mas::before,.faq-mas::after{content:"";position:absolute;left:9px;right:9px;top:50%;height:1.6px;margin-top:-.8px;background:var(--oro)}
+.faq-mas::after{transform:rotate(90deg)}
+.faq-p[aria-expanded="true"] .faq-mas{transform:rotate(135deg);background:rgba(194,168,107,.14)}
+.faq-r{padding:0 52px 16px 18px;font-size:15px;color:var(--gris-claro)}
+html.anima .faq-r:not([hidden]){animation:abre .4s var(--suave)}
+@keyframes abre{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (min-width:900px){.faq-p{font-size:18px;padding:22px 24px 22px 28px}.faq-r{padding:0 80px 24px 28px;font-size:17px}}
+
+/* ================================================================ cierre: dos hojas lacadas que se abren */
+.cierre{position:relative;overflow:hidden;isolation:isolate;display:grid;align-items:center;min-height:560px;padding:90px 0;text-align:center;background:var(--negro)}
+.cierre-foto{position:absolute;inset:0;z-index:-3}
+.cierre-foto img{width:100%;height:100%;object-fit:cover;object-position:50% 45%}
+.cierre-velo{position:absolute;inset:0;z-index:-2;background:radial-gradient(ellipse 85% 70% at 50% 54%,rgba(7,7,7,.86),rgba(7,7,7,.55)),linear-gradient(180deg,#070707 0%,rgba(7,7,7,0) 18%,rgba(7,7,7,0) 80%,#070707 100%)}
+.hojas{position:absolute;inset:0;z-index:-1;display:flex;perspective:1800px;pointer-events:none}
+.hoja{position:relative;flex:1;background:linear-gradient(180deg,#1A1714,#0C0B0A);transition:transform 2.1s cubic-bezier(.62,.04,.26,1) .1s,opacity .6s ease 1.8s;backface-visibility:hidden;box-shadow:inset 0 0 0 1px rgba(194,168,107,.12)}
+.hoja::before,.hoja::after{content:"";position:absolute;left:14%;right:14%;border:1px solid rgba(194,168,107,.3);border-radius:6px}
+.hoja::before{top:8%;height:40%}
+.hoja::after{bottom:8%;height:36%}
+.hoja-izq{transform-origin:0 50%;border-right:1px solid rgba(194,168,107,.5)}
+.hoja-der{transform-origin:100% 50%;border-left:1px solid rgba(194,168,107,.5)}
+.tirador{position:absolute;top:50%;width:8px;height:90px;margin-top:-45px;border-radius:6px;background:linear-gradient(90deg,#8A7038,#F1E1B0 45%,#C2A86B 60%,#8A7038)}
+.hoja-izq .tirador{right:7%}
+.hoja-der .tirador{left:7%}
+html:not(.anima) .hojas,.cierre.abierta .hoja{opacity:0}
+.cierre.abierta .hoja-izq{transform:rotateY(100deg)}
+.cierre.abierta .hoja-der{transform:rotateY(-100deg)}
+.cierre-in{position:relative;max-width:820px}
+.cierre-tit{font-size:clamp(2rem,1.2rem + 4vw,4.2rem);font-weight:800;letter-spacing:-.04em;line-height:1.03}
+.cierre-sub{max-width:28em;margin:16px auto 0;font-size:1.04em;color:var(--porcelana);text-shadow:0 1px 18px rgba(0,0,0,.7)}
+.cierre .boton{margin-top:26px}
+.pd{max-width:32em;margin:22px auto 0;font-size:14px;line-height:1.55;color:var(--porcelana);text-shadow:0 1px 3px rgba(0,0,0,.6),0 1px 16px rgba(0,0,0,.8)}
+.pd b{color:var(--oro-claro);font-weight:700}
+@media (min-width:900px){.cierre .boton{min-width:440px}.cierre{min-height:760px}}
+
+/* ================================================================ pie */
+.pie{position:relative;z-index:2;padding:36px 0 calc(96px + env(safe-area-inset-bottom));border-top:1px solid var(--linea);text-align:center;font-size:13px;line-height:1.6;color:var(--gris)}
+.pie-logo{width:42px;margin:0 auto 14px;opacity:.85}
+.pie-enlaces{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0 14px}
+.pie-enlaces a{display:inline-block;padding:8px 4px;color:var(--gris);text-decoration:none}
+.pie-enlaces a:hover{color:var(--oro);text-decoration:underline;text-underline-offset:3px}
+.pie-marca{color:var(--gris-claro);padding:8px 4px}
+.pie-par{white-space:nowrap}
+.pie-aviso{max-width:46em;margin:10px auto 0;font-size:12px}
+@media (min-width:760px){.pie{padding-bottom:calc(40px + env(safe-area-inset-bottom))}}
+
+/* ================================================================ botón fijo en móvil */
+.cta-fija{display:none}
+@media (max-width:759px){
+  .cta-fija{display:block;position:fixed;z-index:50;left:0;right:0;bottom:0;padding:8px max(12px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));background:rgba(9,8,7,.94);border-top:1px solid rgba(194,168,107,.25);transform:translateY(110%);visibility:hidden;transition:transform .4s var(--suave),visibility 0s linear .4s}
+  .cta-fija.visible{transform:none;visibility:visible;transition:transform .4s var(--suave),visibility 0s}
+  .cta-fija .boton{min-height:54px}
+  .cta-fija .boton-ico{width:40px;height:40px}
+}
+.toast{position:fixed;z-index:80;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100% - 40px);padding:12px 18px;border-radius:999px;background:var(--porcelana);color:#15110A;font:600 14px/1.3 var(--sans);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+
+/* ================================================================ aparición */
+html.anima .revela{opacity:0;transform:translateY(22px);transition:opacity .9s var(--suave),transform 1s var(--suave);transition-delay:calc(var(--i,0) * 80ms)}
+html.anima .revela.visto{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.cl *,.cl *::before,.cl *::after{animation:none!important;transition:none!important}}
+</style>
+<style>
+/* ================================================================ página de pago */
+.pp{position:relative;isolation:isolate;padding:10px 0 40px}
+.pp .fondo{z-index:-1}
+.pp .halo{--y:8%;--fuerza:.2}
+.pp-grid{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"cab" "pago" "resumen" "garantia";gap:18px;max-width:1140px;margin:0 auto}
+.pp-cab{grid-area:cab;text-align:center}
+.pp-cab .bf-sello{margin-bottom:12px}
+.pp-tit{font-size:clamp(1.85rem,1.2rem + 3vw,3.1rem);font-weight:800;letter-spacing:-.04em;line-height:1.02}
+.pp-sub{margin-top:8px;color:var(--gris-claro);font-size:15px}
+.pp-sub b{color:var(--porcelana)}
+.pp-pago{grid-area:pago}
+.pp-resumen{grid-area:resumen}
+.pp-resumen .resumen{max-width:600px}
+.pp-garantia{grid-area:garantia}
+.pp-garantia .seccion{padding:0}
+.pp-garantia .garantia{max-width:600px}
+.pp .pago{scroll-margin-top:calc(var(--barra-h) + 10px)}
+.pp-volver{display:inline-flex;align-items:center;gap:6px;margin:0 auto;padding:8px 6px;color:var(--gris);font-size:13px;text-decoration:none}
+.pp-volver svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transform:scaleX(-1)}
+.pp-volver:hover{color:var(--oro-claro)}
+.pp-reloj{display:flex;justify-content:center}
+.pp-reloj .bf-reloj{margin:12px auto 0}
+.cabecera.cab-pago{padding-top:14px}
+.cabecera.cab-pago img{width:150px}
+@media (min-width:1000px){
+  .pp{padding:24px 0 80px}
+  .pp-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"cab pago" "resumen pago" "garantia pago";gap:22px 40px;align-items:start}
+  .pp-cab{text-align:left;align-self:end}
+  .pp-cab .bf-sello{margin-left:0}
+  .pp-reloj{justify-content:flex-start}
+  .pp-pago{position:sticky;top:calc(var(--barra-h) + 20px)}
+  .pp-resumen .resumen,.pp-garantia .garantia{max-width:none}
+  .pp-garantia .garantia{grid-template-columns:120px 1fr;gap:26px;padding:24px 28px}
+  .pp-garantia .medalla{width:120px}
+  .pp-garantia .garantia p{font-size:15.5px}
+  .cabecera.cab-pago img{width:200px}
+}
+.pie{padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+/* Pago exprés: Apple Pay y Google Pay solo funcionan en el checkout de whop.com
+   (el dominio varela-academy.com no se puede verificar en Apple porque GHL sirve
+   su propio archivo). Estos botones abren ese checkout con las UTM. */
+.pago-expres{display:grid;gap:10px;padding:4px 2px 2px}
+.wallet{display:flex;align-items:center;justify-content:center;gap:6px;height:54px;border-radius:14px;background:#fff;color:#000;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:23px;letter-spacing:-.01em;transition:transform .15s,box-shadow .15s;box-shadow:0 10px 24px -14px rgba(0,0,0,.8)}
+.wallet:hover{transform:translateY(-1px);box-shadow:0 14px 30px -14px rgba(0,0,0,.9)}
+.wallet:focus-visible{outline:2px solid var(--oro);outline-offset:3px}
+.wallet svg{height:24px;width:auto;fill:currentColor}
+.wallet b{font-weight:500}
+.wallet-paypal b{font-weight:800;font-style:italic;color:#003087;font-size:24px}
+.wallet-paypal b i{color:#009cde;font-style:italic}
+.expres-o{display:flex;align-items:center;gap:12px;margin:8px 0 2px;color:var(--gris);font-size:12.5px}
+.expres-o::before,.expres-o::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
+/* Order bump */
+.bump{position:relative;display:grid;grid-template-columns:22px 64px 1fr;gap:12px;align-items:center;margin:12px 2px 4px;padding:14px;border:1.5px dashed rgba(194,168,107,.6);border-radius:16px;background:linear-gradient(180deg,rgba(194,168,107,.10),rgba(194,168,107,.03));cursor:pointer;transition:border-color .15s,background .15s}
+.bump[hidden]{display:none}
+.bump input{position:absolute;opacity:0;pointer-events:none}
+.bump-caja{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--oro);display:grid;place-items:center;background:rgba(0,0,0,.3)}
+.bump-caja svg{width:15px;height:15px;fill:none;stroke:#15110A;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.bump input:checked ~ .bump-caja{background:var(--oro)}
+.bump input:checked ~ .bump-caja svg{opacity:1}
+.bump input:focus-visible ~ .bump-caja{outline:2px solid var(--oro);outline-offset:2px}
+.bump:has(input:checked){border-style:solid;background:linear-gradient(180deg,rgba(194,168,107,.18),rgba(194,168,107,.06))}
+.bump-img{width:64px;height:80px;object-fit:cover;border-radius:6px;box-shadow:0 8px 18px -8px rgba(0,0,0,.8)}
+.bump-txt{display:grid;gap:4px;min-width:0}
+.bump-tit{font-size:15px;font-weight:700;line-height:1.25;color:var(--porcelana)}
+.bump-tit em{font-style:normal;color:var(--oro-claro);white-space:nowrap}
+.bump-desc{font-size:13px;line-height:1.4;color:var(--gris-claro)}
+.pago.whop-fallo .bump{display:none}
+.pago.whop-fallo .pago-expres,.pago.dos-pasos:not(.en-pago) .pago-expres{display:none}
+</style>
+
+</head>
+<body>
+<div class="cl" id="cl">
+
+<div id="barra" class="barra" role="region" aria-label="Black Friday">
+  <div class="barra-in">
+    <p class="barra-txt"><b class="barra-bf"><i aria-hidden="true"></i>Black Friday</b><span class="barra-largo">Las 5 llaves por</span><b class="barra-hoy" data-precio="anticipada">17€</b><s data-precio="normal">147€</s><span class="barra-largo si-sube">hasta el <span data-fecha>[FECHA PENDIENTE]</span></span><span class="barra-largo no-sube">· bonus de IA hasta el <span data-fecha>[FECHA PENDIENTE]</span></span></p>
+    <p class="cuenta" id="cuenta" role="timer" aria-label="Tiempo que queda de Black Friday" hidden><span data-grupo="d"><b data-u="d">00</b><i>d</i></span><span><b data-u="h">00</b><i>h</i></span><span><b data-u="m">00</b><i>m</i></span><span><b data-u="s">00</b><i>s</i></span></p>
+  </div>
+</div>
+<div class="barra-hueco" aria-hidden="true"></div>
+<script>CL.barra();</script>
+
+<!-- iconos de línea, se reutilizan con <use> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-rayo" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-candado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-camara" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.6"/></symbol>
+  <symbol id="i-directo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-doble" viewBox="0 0 24 24"><path d="m2 12.5 4.5 4.5L16 7.5M11 16l1 1 9.5-9.5"/></symbol>
+  <symbol id="i-cruz" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-anillos" viewBox="0 0 24 24"><circle cx="9" cy="14" r="5.5"/><circle cx="15" cy="10" r="5.5"/></symbol>
+  <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></symbol>
+  <symbol id="i-sube" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+  <symbol id="i-baja" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+</svg>
+
+<header class="cabecera cab-pago">
+  <img src="/assets/va-horizontal.png" width="760" height="88" alt="Varela Academy">
+</header>
+
+<main class="pp">
+  <div class="fondo" aria-hidden="true"><div class="rejilla"></div><div class="halo"></div><div class="brasa" style="--y:18%;--fuerza:.12"></div></div>
+  <div class="contenedor pp-grid">
+
+    <div class="pp-cab">
+      <p class="bf-sello solo-anticipada" aria-label="Black Friday"><span class="bf-marca">Black Friday</span><span class="bf-dto" data-descuento>&minus;82%</span></p>
+      <h1 class="pp-tit titular">El Sistema de las 5&nbsp;Llaves</h1>
+      <p class="pp-sub">Clases, dossier, mensajes, contrato, calculadora, directos y llamada<span class="solo-bonus"> + bonus IA</span></p>
+      <div class="pp-reloj"><p class="bf-reloj solo-anticipada"><span class="si-sube">El precio Black Friday termina en</span><span class="no-sube">El bonus de IA termina en</span><span class="cuenta" role="timer"><span data-grupo="d"><b data-u="d">00</b><i>d</i></span><span><b data-u="h">00</b><i>h</i></span><span><b data-u="m">00</b><i>m</i></span><span><b data-u="s">00</b><i>s</i></span></span></p></div>
+    </div>
+
+    <div class="pp-pago">
+      <div class="pago dos-pasos" id="pago">
+        <div class="pago-in">
+          <div class="pago-resumen">
+            <img src="/assets/oferta/llavero-mini.webp" width="192" height="192" alt="" decoding="async">
+            <div><p class="pago-prod">El Sistema de las 5 Llaves</p><p class="pago-det">Pago único<span class="solo-bonus"> · bonus IA incluido</span></p></div>
+            <p class="pago-precio"><s class="solo-anticipada" data-precio="normal">147€</s><b data-precio-hoy>17€</b></p>
+          </div>
+          <p class="pago-pasos"><span class="paso-1 activo"><b>1</b>Tus datos</span><i aria-hidden="true"></i><span class="paso-2"><b>2</b>Pago</span></p>
+          <form class="datos" id="datos" novalidate>
+            <p class="datos-tit">¿Dónde te enviamos el acceso?</p>
+            <label class="campo"><span>Nombre</span><input name="nombre" autocomplete="given-name" autocapitalize="words" maxlength="60" required></label>
+            <label class="campo"><span>Email</span><input name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="120" required></label>
+            <div class="campo"><label for="datos-tel">WhatsApp</label><div class="tel"><select name="prefijo" aria-label="Prefijo del país" autocomplete="tel-country-code"><option value="+34" selected>+34 España</option><option value="+52">+52 México</option><option value="+56">+56 Chile</option><option value="+54">+54 Argentina</option><option value="+57">+57 Colombia</option><option value="+51">+51 Perú</option><option value="+593">+593 Ecuador</option><option value="+598">+598 Uruguay</option><option value="+595">+595 Paraguay</option><option value="+591">+591 Bolivia</option><option value="+58">+58 Venezuela</option><option value="+506">+506 Costa Rica</option><option value="+507">+507 Panamá</option><option value="+502">+502 Guatemala</option><option value="+503">+503 El Salvador</option><option value="+504">+504 Honduras</option><option value="+505">+505 Nicaragua</option><option value="+1">+1 EE. UU. / Puerto Rico / R. Dominicana</option><option value="+351">+351 Portugal</option><option value="+33">+33 Francia</option><option value="+39">+39 Italia</option><option value="+49">+49 Alemania</option><option value="+41">+41 Suiza</option><option value="+44">+44 Reino Unido</option><option value="+376">+376 Andorra</option></select><input id="datos-tel" name="telefono" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="20" required></div></div>
+            <label class="acepto"><input type="checkbox" name="acepto" required><span>He leído la <a data-enlace="privacidad" href="https://pablovarelafotografo.com/privacidad.html" target="_blank" rel="noopener">política de privacidad</a> y quiero recibir el acceso por email y WhatsApp.</span></label>
+            <p class="datos-error" id="datos-error" role="alert" hidden></p>
+            <button class="boton" type="submit"><span class="boton-txt"><b>Continuar al pago</b></span><span class="boton-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-flecha"/></svg></span></button>
+            <p class="datos-micro"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-candado"/></svg>Tus datos solo se usan para darte acceso y acompañarte.</p>
+          </form>
+          <p class="datos-resumen" id="datos-resumen" hidden><span>Acceso para <b id="datos-quien"></b></span><button type="button" id="datos-cambiar">Cambiar</button></p>
+          <div class="pago-expres" id="pago-expres">
+            <a class="wallet wallet-apple" data-expres="apple_pay" href="#" aria-label="Pagar con Apple Pay" hidden><svg viewBox="0 0 384 512" aria-hidden="true"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><b>Pay</b></a>
+            <a class="wallet wallet-google" data-expres="google_pay" href="#" aria-label="Pagar con Google Pay" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2.1 5-4.4 6.6v5.5h7.1c4.2-3.9 6.6-9.6 6.6-16.1z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.6-3.9-12.3-9.1H4.4v5.7C8 41.1 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.7 28.2c-.4-1.3-.7-2.7-.7-4.2s.3-2.9.7-4.2v-5.7H4.4C2.9 17.1 2 20.4 2 24s.9 6.9 2.4 9.9l7.3-5.7z"/><path fill="#EA4335" d="M24 10.7c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.2 29.9 2 24 2 15.4 2 8 6.9 4.4 14.1l7.3 5.7c1.7-5.2 6.6-9.1 12.3-9.1z"/></svg><b>Pay</b></a>
+            <a class="wallet wallet-paypal" data-expres="paypal" href="#" aria-label="Pagar con PayPal"><b><i>Pay</i>Pal</b></a>
+            <p class="expres-o"><span>o paga con tarjeta</span></p>
+          </div>
+          <label class="bump" id="bump" hidden>
+            <input type="checkbox" id="bump-si">
+            <span class="bump-caja" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
+            <img class="bump-img" id="bump-img" alt="" width="120" height="150" decoding="async">
+            <span class="bump-txt"><b class="bump-tit"><span id="bump-tit"></span> <em>+<span id="bump-precio"></span>€</em></b><span class="bump-desc" id="bump-desc"></span></span>
+          </label>
+          <div class="whop-hueco" id="whop-checkout" aria-busy="true">
+            <div class="esqueleto" aria-hidden="true"><i></i><i></i><i class="alto"></i><i></i><i class="alto"></i><i class="boton-e"></i></div>
+          </div>
+          <div class="pago-fallo">
+            <a class="boton" id="pago-enlace" href="#"><span class="boton-txt"><b>Ir al pago seguro</b><small>Whop · tarjeta, Apple Pay y más</small></span><span class="boton-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-flecha"/></svg></span></a>
+          </div>
+          <p class="pago-cab"><span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-candado"/></svg>Pago seguro</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-rayo"/></svg>Acceso inmediato</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-escudo"/></svg>Garantía 14 días</span></p>
+          <p class="pago-nota">Pago único. Recibes el acceso al momento por email.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pp-resumen">
+      <div class="resumen" id="resumen">
+        <p class="resumen-tit">El Sistema de las 5 Llaves</p>
+        <ol class="pila" id="pila">
+          <li class="pieza" data-valor="97"><img class="pieza-img" src="/assets/oferta/estuche.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Las 5 llaves</p><p class="pieza-sub">5 clases cortas con el sistema completo</p></div><p class="pieza-valor"><span class="sr">Valor: </span>97€</p></li>
+          <li class="pieza" data-valor="97"><img class="pieza-img" src="/assets/oferta/dosier.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Mi dossier real</p><p class="pieza-sub">Plantilla editable: cambia mis fotos por las tuyas</p></div><p class="pieza-valor"><span class="sr">Valor: </span>97€</p></li>
+          <li class="pieza" data-valor="47"><img class="pieza-img" src="/assets/oferta/mensajes.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Mis mensajes con parejas</p><p class="pieza-sub">Conversaciones reales, anonimizadas</p></div><p class="pieza-valor"><span class="sr">Valor: </span>47€</p></li>
+          <li class="pieza" data-valor="97"><img class="pieza-img" src="/assets/oferta/contrato.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Contrato de bodas</p><p class="pieza-sub">Revisado por una abogada</p></div><p class="pieza-valor"><span class="sr">Valor: </span>97€</p></li>
+          <li class="pieza" data-valor="37"><img class="pieza-img" src="/assets/oferta/calculadora.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Calculadora de precio</p><p class="pieza-sub">Lo que tienes que cobrar por boda</p></div><p class="pieza-valor"><span class="sr">Valor: </span>37€</p></li>
+          <li class="pieza" data-valor="47"><span class="pieza-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-directo"/></svg></span><div><p class="pieza-tit">Directo mensual</p><p class="pieza-sub">Acceso prioritario y grabaciones</p></div><p class="pieza-valor"><span class="sr">Valor: </span>47€</p></li>
+          <li class="pieza pieza-bonus solo-bonus" data-valor="97"><img class="pieza-img" src="/assets/oferta/diagnostico.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="bonus-tag"><i aria-hidden="true"></i><span class="solo-anticipada">Solo Black Friday</span><span class="solo-normal">Bonus solo en esta página</span></p><p class="pieza-tit">Diagnóstico con IA de tus 5 llaves</p><p class="pieza-sub">Esta IA tiene toda la metodología de Pablo Varela que ha construido en todos estos 11 años.</p></div><p class="pieza-valor"><span class="sr">Valor: </span>97€</p></li>
+          <li class="pieza pieza-llamada"><img class="pieza-img" src="/assets/oferta/llamada.webp" width="192" height="192" alt="" loading="lazy" decoding="async"><div><p class="pieza-tit">Llamada de diagnóstico</p><p class="pieza-sub">Revisamos tus 5 llaves y te llevas tu plan</p></div><p class="pieza-valor">Incluida</p></li>
+        </ol>
+        <div class="total" id="precio">
+          <p class="total-fila"><span>Valor total</span><s class="tachon" data-total>519€</s></p>
+          <p class="total-fila solo-anticipada"><span>Precio original</span><s class="tachon" data-precio="normal">147€</s></p>
+          <div class="total-hoy">
+            <span class="bf-fondo solo-anticipada" aria-hidden="true">BLACK FRIDAY</span>
+            <p class="total-eti"><span class="solo-anticipada">Hoy, precio Black Friday</span><span class="solo-normal">Hoy</span></p>
+            <p class="precio-grande" data-precio-hoy>17€</p>
+            <p class="ahorro solo-anticipada">Ahorras <b data-ahorro>130€</b><span aria-hidden="true">·</span><span data-descuento>&minus;88%</span></p>
+          </div>
+          <p class="precio-arg">Menos de lo que cobras por una hora de sesión. Una sola boda lo paga cincuenta veces.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pp-garantia">
+<section id="garantia" class="seccion" style="padding:8px 0 40px">
+  <div class="contenedor">
+    <div class="garantia cristal">
+      <img class="medalla" src="/assets/3d/medalla.webp" width="1000" height="1000" alt="Medalla de 14 días de garantía" loading="lazy" decoding="async">
+      <div>
+        <h2 class="titular">14&nbsp;días de garantía, sin preguntas</h2>
+        <p>Si en 14 días sientes que no te ha servido, escríbenos y te devolvemos el dinero. El riesgo es mío.</p>
+      </div>
+    </div>
+  </div>
+</section>
+    </div>
+
+  </div>
+</main>
+
+<footer class="pie">
+  <div class="contenedor">
+    <img class="pie-logo" src="/assets/va-monograma.png" width="360" height="312" alt="" loading="lazy">
+    <p class="pie-enlaces"><span class="pie-marca">Varela Wedding Academy</span><span class="pie-par"><a data-enlace="aviso" href="https://pablovarelafotografo.com/aviso-legal.html">Aviso legal</a></span> <span class="pie-par"><a data-enlace="privacidad" href="https://pablovarelafotografo.com/privacidad.html">Privacidad</a></span> <span class="pie-par"><a data-enlace="contacto" href="https://wa.me/34685573836">Contacto</a></span></p>
+    <p class="pie-aviso">Este sitio no forma parte de Meta ni está respaldado por Meta. Los resultados dependen de la aplicación de cada persona.</p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var raiz = document.documentElement;
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  raiz.classList.remove('anima');   // aquí nada aparece con animación: todo se ve desde el primer momento
+
+  // ---------------------------------------------------------- precios y valor total
+  function sumaValor() {
+    var t = 0;
+    $$('#pila [data-valor]').forEach(function (li) { if (getComputedStyle(li).display !== 'none') t += +li.getAttribute('data-valor'); });
+    $$('[data-total]').forEach(function (el) { el.textContent = t + '€'; });
+  }
+  CL.rellena(document);
+  sumaValor();
+  CL.late();
+
+  // ---------------------------------------------------------- pie
+  var enlaces = { aviso: AVISO_LEGAL_URL, privacidad: PRIVACIDAD_URL, contacto: CONTACTO_URL };
+  $$('[data-enlace]').forEach(function (a) {
+    var url = enlaces[a.getAttribute('data-enlace')];
+    if (url) a.href = url;
+    if (/^https?:/.test(a.href) && a.hostname !== location.hostname) { a.target = '_blank'; a.rel = 'noopener'; }
+  });
+
+  // ---------------------------------------------------------- UTM, ID de compra y variante (vienen de la landing)
+  var CLAVES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'];
+  var q = new URLSearchParams(location.search), utm = {};
+  (function () {
+    var hay = false;
+    CLAVES.forEach(function (k) { var v = q.get(k); if (v) { utm[k] = v; hay = true; } });
+    try {
+      if (hay) sessionStorage.setItem('cl_utm', JSON.stringify(utm));
+      else utm = JSON.parse(sessionStorage.getItem('cl_utm') || '{}') || {};
+    } catch (e) {}
+  })();
+  var idCompra = (function () {
+    var id = (q.get('eid') || '').replace(/[^\w-]/g, '').slice(0, 40);
+    try { if (!id) id = sessionStorage.getItem('cl_eid') || ''; } catch (e) {}
+    if (!id) id = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    try { sessionStorage.setItem('cl_eid', id); } catch (e) {}
+    return id;
+  })();
+
+  // ---------------------------------------------------------- píxel: llegar aquí es empezar a pagar
+  CL.evento('InitiateCheckout', { value: CL.precioActual(), currency: 'EUR', content_name: 'El Sistema de las 5 Llaves', content_ids: ['5-llaves'], content_type: 'product', num_items: 1 });
+
+  // ---------------------------------------------------------- checkout de Whop
+  var SDK_WHOP = 'https://cdn.whop.com/elements/amber/elements.js';
+  var pago = $('#pago'), hueco = $('#whop-checkout'), enlacePago = $('#pago-enlace'), whopEstado = 'nada', planMontado = '';
+  var APARIENCIA = {
+    theme: { appearance: 'dark', accentColor: 'gold', grayColor: 'sand', dangerColor: 'red', successColor: 'jade' },
+    variables: { '--radius': '14px' },
+    classes: {
+      'whop-Checkout': { background: 'transparent' },
+      'whop-CheckoutLayout': { background: 'transparent' },
+      'whop-CheckoutDetails': { background: 'transparent' },
+      'whop-CheckoutCollection': { background: 'transparent' },
+      'whop-CheckoutPayButton': { backgroundColor: '#C9AE70', color: '#15110A', borderRadius: '999px', fontWeight: '700', fontSize: '16px', minHeight: '56px', border: '0', boxShadow: '0 18px 40px -18px rgba(194,168,107,.9)' },
+      'whop-CardFieldInput': { borderRadius: '14px' },
+      'whop-CardFieldInputFocused': { borderColor: '#C2A86B', boxShadow: '0 0 0 3px rgba(194,168,107,.22)' }
+    }
+  };
+  function planActual() { return CL.anticipada() ? WHOP_PLAN_ANTICIPADA : (WHOP_PLAN_NORMAL || WHOP_PLAN_ANTICIPADA); }
+  function conBump() { var c = document.getElementById('bump-si'); return !!WHOP_PLAN_BUMP && !!(c && c.checked); }
+  function urlTrasPago() {
+    var u = new URL(URL_TRAS_PAGO, location.href);
+    u.searchParams.set('compra', 'ok');
+    u.searchParams.set('precio', String(CL.precioActual() + (conBump() ? BUMP_PRECIO : 0)));
+    if (conBump()) u.searchParams.set('bump', '1');
+    u.searchParams.set('eid', idCompra);
+    Object.keys(utm).forEach(function (k) { u.searchParams.set(k, utm[k]); });
+    return u.href;
+  }
+  function urlPagoWhop() {
+    var u = new URL('https://whop.com/checkout/' + planActual() + '/');
+    Object.keys(utm).forEach(function (k) { u.searchParams.set(k, utm[k]); });
+    if (datos) u.searchParams.set('email', datos.email);
+    return u.toString();
+  }
+  var yendoAlAcceso = false;
+  function vaAlAcceso(datosEv) {
+    if (yendoAlAcceso || !URL_TRAS_PAGO) return;
+    yendoAlAcceso = true;
+    try { console.info('[5 llaves] compra completada en Whop', datosEv || ''); } catch (e) {}
+    location.href = urlTrasPago();
+  }
+  function falloWhop(motivo) {
+    if (whopEstado === 'listo') return;
+    whopEstado = 'error';
+    enlacePago.href = urlPagoWhop();
+    pago.classList.add('whop-fallo');
+    hueco.setAttribute('aria-busy', 'false');
+    if (motivo) console.error('[5 llaves] El checkout de Whop no cargó:', motivo);
+  }
+
+  // ---------------------------------------------------------- paso 1: datos (van a GHL) antes del pago
+  var formDatos = $('#datos'), datos = null;
+  function avisoDatos(t) { var e = $('#datos-error'); e.textContent = t || ''; e.hidden = !t; }
+  function enviaGHL(d) {
+    var cuerpo = { nombre: d.nombre, email: d.email, telefono: d.telefono, eid: idCompra, variante: VARIANTE, origen: 'pago-5-llaves', precio: String(CL.precioActual()), fase: CL.anticipada() ? 'black-friday' : 'normal', pagina: location.href.split('?')[0] };
+    Object.keys(utm).forEach(function (k) { cuerpo[k] = utm[k]; });
+    if (!GHL_WEBHOOK_CHECKOUT) { console.info('[GHL] sin GHL_WEBHOOK_CHECKOUT: no se envía', cuerpo); return; }
+    try { fetch(GHL_WEBHOOK_CHECKOUT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo), keepalive: true }).catch(function (e) { console.error('[GHL] no se pudieron enviar los datos', e); }); } catch (e) {}
+  }
+  function pasoPago(activo) {
+    pago.classList.toggle('en-pago', activo);
+    $('.paso-1', pago).classList.toggle('activo', !activo);
+    $('.paso-1', pago).classList.toggle('hecho', activo);
+    $('.paso-2', pago).classList.toggle('activo', activo);
+    formDatos.hidden = activo;
+    $('#datos-resumen').hidden = !activo;
+  }
+  if (!PEDIR_DATOS_ANTES) { formDatos.remove(); $('.pago-pasos', pago).remove(); pago.classList.remove('dos-pasos'); pago.classList.add('en-pago'); }
+  else {
+    try {   // si vuelve en la misma visita, sus datos ya están puestos
+      var guardados = JSON.parse(sessionStorage.getItem('cl_datos') || 'null');
+      if (guardados) ['nombre', 'email', 'telefono', 'prefijo'].forEach(function (k) { if (guardados[k] && formDatos[k]) formDatos[k].value = guardados[k]; });
+    } catch (e) {}
+    formDatos.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nombre = formDatos.nombre.value.trim(), email = formDatos.email.value.trim().toLowerCase();
+      var tel = formDatos.telefono.value.replace(/[^\d]/g, ''), pre = formDatos.prefijo.value;
+      if (tel.length > 9 && pre.length > 1 && tel.indexOf(pre.slice(1)) === 0) tel = tel.slice(pre.length - 1);   // pegaron el prefijo dos veces
+      if (nombre.length < 2) { avisoDatos('Escribe tu nombre.'); formDatos.nombre.focus(); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { avisoDatos('Revisa el email: ahí te llega el acceso.'); formDatos.email.focus(); return; }
+      if (tel.length < 6 || tel.length > 14) { avisoDatos('Revisa el número de WhatsApp.'); formDatos.telefono.focus(); return; }
+      if (!formDatos.acepto.checked) { avisoDatos('Marca la casilla para poder enviarte el acceso.'); formDatos.acepto.focus(); return; }
+      avisoDatos('');
+      var otro = !datos || datos.email !== email;
+      datos = { nombre: nombre, email: email, telefono: pre + tel, prefijo: pre };
+      try { sessionStorage.setItem('cl_datos', JSON.stringify({ nombre: nombre, email: email, telefono: formDatos.telefono.value, prefijo: pre })); } catch (e2) {}
+      enviaGHL(datos);
+      CL.evento('Lead', { content_name: 'Checkout 5 Llaves', value: CL.precioActual(), currency: 'EUR' });
+      $('#datos-quien').textContent = email;
+      pasoPago(true);
+      enlacePago.href = urlPagoWhop();
+      if (otro && (whopEstado === 'listo' || whopEstado === 'montando')) remontaWhop();
+      else cargaWhop();
+      pago.scrollIntoView({ behavior: CL.reducido ? 'auto' : 'smooth', block: 'start' });
+    });
+    $('#datos-cambiar').addEventListener('click', function () { pasoPago(false); formDatos.email.focus(); });
+  }
+
+  function montaWhop() {
+    if (PEDIR_DATOS_ANTES && !datos) return;    // espera al paso 1
+    whopEstado = 'montando';
+    setTimeout(function () { if (whopEstado === 'montando') falloWhop('tardó demasiado'); }, 25000);
+    try {
+      var whop = window.WhopElements({ locale: 'es', appearance: APARIENCIA });
+      var atrib = { source: 'pago-5-llaves' }, meta = { origen: 'pago-5-llaves', variante: VARIANTE };
+      [['utm_source', 'utmSource'], ['utm_medium', 'utmMedium'], ['utm_campaign', 'utmCampaign'], ['utm_term', 'utmTerm'], ['utm_content', 'utmContent']].forEach(function (p) { if (utm[p[0]]) atrib[p[1]] = utm[p[0]]; });
+      if (utm.fbclid) meta.fbclid = utm.fbclid;
+      if (utm.gclid) meta.gclid = utm.gclid;
+      // para la API de conversiones: el mismo ID de compra que usará el píxel en la página de acceso
+      meta.eid = idCompra;
+      var ck = document.cookie.match(/(?:^|; )_fbp=([^;]+)/); if (ck) meta.fbp = decodeURIComponent(ck[1]);
+      ck = document.cookie.match(/(?:^|; )_fbc=([^;]+)/); if (ck) meta.fbc = decodeURIComponent(ck[1]);
+      else if (utm.fbclid) meta.fbc = 'fb.1.' + Date.now() + '.' + utm.fbclid;
+      Object.keys(utm).forEach(function (k) { if (k.indexOf('utm_') === 0) meta[k] = utm[k]; });
+      if (datos) { meta.nombre = datos.nombre; meta.telefono = datos.telefono; }
+      planMontado = planActual();
+      var opciones = { attribution: atrib, metadata: meta };
+      if (conBump()) { opciones.items = [{ plan: planMontado, quantity: 1 }, { plan: WHOP_PLAN_BUMP, quantity: 1 }]; meta.bump = 'si'; }
+      else opciones.plan = planMontado;
+      if (URL_TRAS_PAGO) opciones.returnUrl = urlTrasPago();
+      var co = window.WhopElements.__co = whop.checkout.create(opciones);
+      var opEl = {
+        onReady: function () { whopEstado = 'listo'; pago.classList.remove('whop-fallo'); pago.classList.add('whop-listo'); hueco.setAttribute('aria-busy', 'false'); },
+        onError: function (e) { falloWhop(e && e.message); },
+        // compra hecha → a la página de acceso al momento (returnUrl cubre los pagos que salen
+        // de la página, como 3D Secure, Klarna o PayPal, y vuelven solos a esa misma dirección)
+        onEvent: function (nombre, datosEv) {
+          if (/^(purchaseCompleted|checkoutCompleted|paymentSucceeded)$/.test(nombre)) vaAlAcceso(datosEv);
+        }
+      };
+      if (datos) { opEl.buyerEmail = datos.email; opEl.lockBuyerEmail = true; }   // un email vacío deja el checkout sin pintar
+      var el = window.WhopElements.__el = co.create('checkout', opEl);
+      el.mount(hueco);
+    } catch (e) { falloWhop(e.message); }
+  }
+  function remontaWhop() {
+    try { if (window.WhopElements && WhopElements.__el) WhopElements.__el.destroy(); } catch (e) {}
+    hueco.innerHTML = ''; pago.classList.remove('whop-listo', 'whop-fallo'); whopEstado = 'sdk'; montaWhop();
+  }
+  // El SDK se descarga nada más abrir la página; el checkout se monta cuando hay datos
+  function cargaWhop() {
+    if (whopEstado === 'sdk') { montaWhop(); return; }
+    if (whopEstado !== 'nada') return;
+    whopEstado = 'cargando';
+    if (window.WhopElements) { whopEstado = 'sdk'; montaWhop(); return; }
+    var s = document.createElement('script');
+    s.src = SDK_WHOP; s.async = true; s.setAttribute('data-whop-elements', '');
+    s.onload = function () { if (!window.WhopElements) { falloWhop('sin WhopElements'); return; } whopEstado = 'sdk'; montaWhop(); };
+    s.onerror = function () { falloWhop('no se pudo descargar el SDK'); };
+    document.head.appendChild(s);
+    setTimeout(function () { if (whopEstado === 'cargando') falloWhop('tardó demasiado'); }, 25000);
+  }
+  // ---------------------------------------------------------- order bump
+  var bumpSi = $('#bump-si');
+  if (WHOP_PLAN_BUMP) {
+    $('#bump').hidden = false;
+    $('#bump-tit').textContent = BUMP_TITULO;
+    $('#bump-desc').textContent = BUMP_TEXTO;
+    $('#bump-precio').textContent = BUMP_PRECIO;
+    $('#bump-img').src = BUMP_IMAGEN;
+    bumpSi.addEventListener('change', function () {
+      CL.evento(bumpSi.checked ? 'BumpAnadido' : 'BumpQuitado', { value: BUMP_PRECIO, currency: 'EUR', content_name: BUMP_TITULO });
+      $$('[data-precio-hoy]').forEach(function (el) { el.textContent = (CL.precioActual() + (bumpSi.checked ? BUMP_PRECIO : 0)) + '€'; });
+      if (whopEstado === 'listo' || whopEstado === 'montando' || whopEstado === 'error') remontaWhop();
+    });
+  }
+
+  // ---------------------------------------------------------- pago exprés (Apple Pay / Google Pay / PayPal en whop.com)
+  var esApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && (!!window.ApplePaySession || /iPhone|iPad|iPod/.test(navigator.userAgent));
+  $(esApple ? '.wallet-apple' : '.wallet-google', pago).hidden = false;
+  function ponExpres() { $$('[data-expres]', pago).forEach(function (a) { a.href = urlPagoWhop(); }); }
+  $$('[data-expres]', pago).forEach(function (a) {
+    a.addEventListener('click', function () { CL.evento('PagoExpres', { metodo: a.getAttribute('data-expres'), value: CL.precioActual(), currency: 'EUR' }); });
+  });
+  ponExpres();
+
+  enlacePago.href = urlPagoWhop();
+  cargaWhop();
+  document.addEventListener('cl:fase', function () {
+    sumaValor();
+    ponExpres();
+    enlacePago.href = urlPagoWhop();
+    if ((whopEstado === 'listo' || whopEstado === 'montando') && planActual() !== planMontado) remontaWhop();
+  });
+
+  // ---------------------------------------------------------- hora del servidor
+  if (!isNaN(CL.fin) && /^https?:$/.test(location.protocol) && window.fetch) {
+    fetch(location.href, { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+      var d = Date.parse(r.headers.get('Date'));
+      if (!isNaN(d)) CL.corrigeHora(d);
+    }).catch(function () {});
+  }
+  window.addEventListener('resize', function () { CL.mide(); });
+  CL.listo = true;
+  if (!GHL_WEBHOOK_CHECKOUT) console.warn('[5 llaves] Falta GHL_WEBHOOK_CHECKOUT: los datos del paso 1 no llegan a GHL.');
+})();
+</script>
+
+</body>
+</html>
