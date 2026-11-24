@@ -426,6 +426,17 @@ html.anima .haces i:nth-child(3){animation:mece-3 17s ease-in-out infinite}
 .vsl-medio{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 /* previsualización en silencio + «activar sonido» (Bunny o .mp4) */
 .vsl-previa{position:absolute;inset:0}
+.vsl-lim{position:absolute;inset:0;overflow:hidden;background:#000}
+.vsl-lim .vsl-ifr{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+.vsl-tapa{position:absolute;inset:0;z-index:2;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.vsl-barra{position:absolute;left:0;right:0;bottom:0;z-index:3;height:56px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#050505;pointer-events:auto}
+.vsl-barra::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:28px;background:linear-gradient(180deg,rgba(5,5,5,0),#050505);pointer-events:none}
+.vsl-b{pointer-events:auto;display:grid;place-items:center;width:38px;height:38px;margin:0;padding:0;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.vsl-b:hover{border-color:var(--oro,#c2a86b)}
+.vsl-b svg{width:18px;height:18px;fill:currentColor}
+.vsl-b .i-ola,.vsl-b .i-x{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.vsl-lim .i-play,.vsl-lim.pausado .i-pausa,.vsl-lim .i-x,.vsl-lim.mudo .i-ola{display:none}
+.vsl-lim.pausado .i-play,.vsl-lim.mudo .i-x{display:inline}
 .vsl-previa .vsl-medio{pointer-events:none}
 .vsl-sonido{position:absolute;inset:0;z-index:2;display:grid;place-items:center;width:100%;height:100%;margin:0;padding:0;border:0;background:linear-gradient(180deg,rgba(7,7,7,0) 45%,rgba(7,7,7,.38));cursor:pointer;-webkit-tap-highlight-color:transparent}
 .vsl-sonido-pill{display:inline-flex;align-items:center;gap:11px;padding:13px 22px 13px 15px;border-radius:999px;background:linear-gradient(150deg,#F1E1B0,#C2A86B 55%,#8A7038);color:#15110A;font-weight:700;font-size:16px;line-height:1.1;box-shadow:0 0 0 8px rgba(194,168,107,.2),0 18px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.6);animation:vsl-latido 1.8s ease-in-out infinite}
@@ -1211,6 +1222,10 @@ html.anima .revela.visto{opacity:1;transform:none}
   }
   // ---------------------------------------------------------- order bump
   var bumpSi = $('#bump-si');
+  // El ebook se desbloquea en el acceso (varela-academy.com) con esta cookie compartida del dominio:
+  // se pone al marcar el bump y se quita al desmarcarlo (cubre la vuelta por la redirección de Whop sin ?bump=1)
+  function cookieEbook(si) { try { var d = /varela-academy\.com$/.test(location.hostname) ? '; domain=.varela-academy.com' : ''; document.cookie = 'cl_ebook=' + (si ? '1; max-age=31536000' : '; max-age=0') + d + '; path=/; SameSite=Lax; Secure'; } catch (e) {} }
+  if (bumpSi) { bumpSi.addEventListener('change', function () { cookieEbook(bumpSi.checked); }); }
   if (WHOP_PLAN_BUMP) {
     $('#bump').hidden = false;
     $('#bump-tit').textContent = BUMP_TITULO;
